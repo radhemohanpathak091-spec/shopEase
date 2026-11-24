@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Meridian Supply",
+  "description": "Curated e-commerce storefront for apparel, accessories, and electronics featuring secure authentication, live search filters, and an integrated shopping cart.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
