@@ -11,6 +11,7 @@ export interface AuthSuccessMeta {
   email?: string;
   needsConfirmation?: boolean;
   name?: string;
+  supabaseSynced?: boolean;
 }
 
 interface AuthDrawerProps {
@@ -74,6 +75,7 @@ export function AuthDrawer({
     setSubmitting(true);
     try {
       const normalizedEmail = email.trim();
+      const trimmedName = name.trim();
       if (mode === 'login') {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
@@ -91,6 +93,35 @@ export function AuthDrawer({
             error?: string;
           };
           if (fallbackRes.ok && fallbackData.token && fallbackData.user) {
+            if (!fallbackData.user.supabaseSynced && !/email not confirmed/i.test(signInError.message)) {
+              try {
+                const { data: syncData } = await supabase.auth.signUp({
+                  email: normalizedEmail,
+                  password,
+                  options: {
+                    data: {
+                      name: fallbackData.user.name,
+                      full_name: fallbackData.user.name,
+                      display_name: fallbackData.user.name,
+                      dob: fallbackData.user.dob ?? null,
+                      phone: fallbackData.user.phone ?? null,
+                    },
+                  },
+                });
+                if (syncData.session?.access_token) {
+                  await fetch('/api/auth/link-supabase', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${fallbackData.token}`,
+                    },
+                    body: JSON.stringify({ supabaseAccessToken: syncData.session.access_token }),
+                  });
+                }
+              } catch {
+                // Keep login working even if Supabase rate limit is still active
+              }
+            }
             await onBackendAuthSuccess(fallbackData.token, fallbackData.user);
           } else {
             setError(
@@ -107,6 +138,13 @@ export function AuthDrawer({
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
+          options: {
+            data: {
+              name: trimmedName,
+              full_name: trimmedName,
+              display_name: trimmedName,
+            },
+          },
         });
         if (signUpError) {
           const isRateLimited =
@@ -120,7 +158,7 @@ export function AuthDrawer({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: name.trim(),
+              name: trimmedName,
               email: normalizedEmail,
               password,
             }),
@@ -128,6 +166,7 @@ export function AuthDrawer({
           const fallbackData = (await fallbackRes.json()) as {
             token?: string;
             user?: UserProfile;
+            supabaseSynced?: boolean;
             error?: string;
           };
           if (!fallbackRes.ok || !fallbackData.token || !fallbackData.user) {
@@ -139,6 +178,7 @@ export function AuthDrawer({
             email: fallbackData.user.email,
             needsConfirmation: false,
             name: fallbackData.user.name,
+            supabaseSynced: Boolean(fallbackData.supabaseSynced),
           });
           setName('');
         } else {
@@ -150,7 +190,8 @@ export function AuthDrawer({
             isNewAccount: true,
             email: data.user?.email || normalizedEmail,
             needsConfirmation: !data.session,
-            name: name.trim() || undefined,
+            name: trimmedName || undefined,
+            supabaseSynced: true,
           });
           setName('');
         }
@@ -171,20 +212,20 @@ export function AuthDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[2px] animate-backdrop-enter"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-drawer-title"
     >
       <aside
-        className="w-full max-w-md h-full bg-white border-l border-[#E5E4DF] flex flex-col shadow-2xl"
+        className="w-full max-w-md h-full bg-[#FFFDF9] border-l border-[#E4D8C6] flex flex-col shadow-2xl animate-drawer-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-5 border-b border-[#EFEFED] flex items-center justify-between gap-4">
+        <div className="px-6 py-5 border-b border-[#EFE5D6] flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <User className="w-4 h-4 text-[#141413]" />
-            <h2 id="auth-drawer-title" className="font-display text-lg font-semibold text-[#141413]">
+            <User className="w-4 h-4 text-[#6B3F26]" />
+            <h2 id="auth-drawer-title" className="font-display text-lg font-semibold text-[#2C1A12]">
               {user ? 'Your Account' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </h2>
           </div>
@@ -192,7 +233,7 @@ export function AuthDrawer({
             type="button"
             onClick={onClose}
             aria-label="Close account drawer"
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#575652] hover:bg-[#F1F0ED] hover:text-[#141413] transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#63493B] hover:bg-[#F3EBDD] hover:text-[#2C1A12] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -201,7 +242,7 @@ export function AuthDrawer({
         <div className="flex-1 overflow-y-auto p-6">
           {!user ? (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-1 p-1 bg-[#F1F0ED] rounded-lg">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[#F3EBDD] rounded-lg">
                 <button
                   type="button"
                   onClick={() => {
@@ -210,8 +251,8 @@ export function AuthDrawer({
                   }}
                   className={`min-h-[40px] py-2 px-3 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
                     mode === 'login'
-                      ? 'bg-white text-[#141413] shadow-xs'
-                      : 'text-[#575652] hover:text-[#141413]'
+                      ? 'bg-[#FFFDF9] text-[#2C1A12] shadow-xs'
+                      : 'text-[#63493B] hover:text-[#2C1A12]'
                   }`}
                 >
                   Sign In
@@ -224,24 +265,24 @@ export function AuthDrawer({
                   }}
                   className={`min-h-[40px] py-2 px-3 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
                     mode === 'register'
-                      ? 'bg-white text-[#141413] shadow-xs'
-                      : 'text-[#575652] hover:text-[#141413]'
+                      ? 'bg-[#FFFDF9] text-[#2C1A12] shadow-xs'
+                      : 'text-[#63493B] hover:text-[#2C1A12]'
                   }`}
                 >
                   Create Account
                 </button>
               </div>
 
-              <p className="text-sm text-[#575652] leading-relaxed">
+              <p className="text-sm text-[#63493B] leading-relaxed">
                 {mode === 'login'
                   ? 'Sign in to access your saved shopping bag, express checkout, and order history.'
                   : 'Create an account to save your bag, track deliveries, and speed through checkout.'}
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form key={mode} onSubmit={handleSubmit} className="space-y-4 animate-panel-enter">
                 {mode === 'register' && (
                   <div>
-                    <label htmlFor="auth-name" className="block text-xs font-medium text-[#141413] mb-1.5">
+                    <label htmlFor="auth-name" className="block text-xs font-medium text-[#2C1A12] mb-1.5">
                       Full Name
                     </label>
                     <input
@@ -254,13 +295,13 @@ export function AuthDrawer({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Jordan Mercer"
-                      className="w-full h-11 px-3.5 text-sm bg-white border border-[#D6D5CF] rounded-lg text-[#141413] placeholder:text-[#9E9D97] focus:outline-none focus:border-[#1D4ED8]"
+                      className="w-full h-11 px-3.5 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label htmlFor="auth-email" className="block text-xs font-medium text-[#141413] mb-1.5">
+                  <label htmlFor="auth-email" className="block text-xs font-medium text-[#2C1A12] mb-1.5">
                     Email Address
                   </label>
                   <input
@@ -271,12 +312,12 @@ export function AuthDrawer({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full h-11 px-3.5 text-sm bg-white border border-[#D6D5CF] rounded-lg text-[#141413] placeholder:text-[#9E9D97] focus:outline-none focus:border-[#1D4ED8]"
+                    className="w-full h-11 px-3.5 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="auth-password" className="block text-xs font-medium text-[#141413] mb-1.5">
+                  <label htmlFor="auth-password" className="block text-xs font-medium text-[#2C1A12] mb-1.5">
                     Password
                   </label>
                   <div className="relative">
@@ -290,13 +331,13 @@ export function AuthDrawer({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Minimum 8 characters"
-                      className="w-full h-11 pl-3.5 pr-11 text-sm bg-white border border-[#D6D5CF] rounded-lg text-[#141413] placeholder:text-[#9E9D97] focus:outline-none focus:border-[#1D4ED8]"
+                      className="w-full h-11 pl-3.5 pr-11 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#575652] hover:text-[#141413] rounded"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#63493B] hover:text-[#2C1A12] rounded"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -306,7 +347,7 @@ export function AuthDrawer({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full min-h-[44px] px-5 py-2.5 bg-[#1D4ED8] hover:bg-[#1E40AF] disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                  className="w-full min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] disabled:opacity-60 text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
                 >
                   {submitting
                     ? 'Verifying...'
@@ -328,17 +369,17 @@ export function AuthDrawer({
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-[#F8F8F7] border border-[#E5E4DF] flex items-center justify-between gap-4">
+              <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E4D8C6] flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="font-display text-base font-semibold text-[#141413] truncate">
+                  <p className="font-display text-base font-semibold text-[#2C1A12] truncate">
                     {user.name}
                   </p>
-                  <p className="text-xs text-[#575652] truncate mt-0.5">{user.email}</p>
+                  <p className="text-xs text-[#63493B] truncate mt-0.5">{user.email}</p>
                 </div>
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 text-xs font-medium text-[#141413] bg-white border border-[#D6D5CF] rounded-lg hover:bg-[#F1F0ED] transition-colors whitespace-nowrap shrink-0"
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 text-xs font-medium text-[#1E4E6E] bg-[#E1F0FA] border border-[#A8D4F0] rounded-lg hover:bg-[#CBE4F6] transition-colors whitespace-nowrap shrink-0"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   Sign Out
@@ -347,23 +388,23 @@ export function AuthDrawer({
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-display text-sm font-semibold text-[#141413]">
+                  <h3 className="font-display text-sm font-semibold text-[#2C1A12]">
                     Order History
                   </h3>
-                  <span className="font-mono text-xs text-[#6B6A65] tabular-nums">
+                  <span className="font-mono text-xs text-[#7C6354] tabular-nums">
                     {orders.length} {orders.length === 1 ? 'order' : 'orders'}
                   </span>
                 </div>
 
                 {ordersLoading ? (
-                  <div className="py-10 text-center text-xs text-[#6B6A65]">
+                  <div className="py-10 text-center text-xs text-[#7C6354]">
                     Loading your orders...
                   </div>
                 ) : orders.length === 0 ? (
-                  <div className="py-10 px-4 text-center border border-dashed border-[#D6D5CF] rounded-xl">
-                    <PackageCheck className="w-6 h-6 text-[#8E8D87] mx-auto mb-2" strokeWidth={1.5} />
-                    <p className="text-sm font-medium text-[#141413]">No orders placed yet</p>
-                    <p className="text-xs text-[#6B6A65] mt-1">
+                  <div className="py-10 px-4 text-center border border-dashed border-[#D7C6B1] rounded-xl">
+                    <PackageCheck className="w-6 h-6 text-[#7C6354] mx-auto mb-2" strokeWidth={1.5} />
+                    <p className="text-sm font-medium text-[#2C1A12]">No orders placed yet</p>
+                    <p className="text-xs text-[#7C6354] mt-1">
                       Completed checkouts will appear here with full shipping receipts.
                     </p>
                   </div>
@@ -372,14 +413,14 @@ export function AuthDrawer({
                     {orders.map((order) => (
                       <div
                         key={order.id}
-                        className="border border-[#E5E4DF] rounded-xl p-4 space-y-3 bg-white"
+                        className="border border-[#E4D8C6] rounded-xl p-4 space-y-3 bg-[#FFFDF9]"
                       >
-                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[#EFEFED]">
+                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[#EFE5D6]">
                           <div>
-                            <p className="font-mono text-xs font-medium text-[#141413]">
+                            <p className="font-mono text-xs font-medium text-[#2C1A12]">
                               {order.id}
                             </p>
-                            <p className="text-[11px] text-[#6B6A65]">
+                            <p className="text-[11px] text-[#7C6354]">
                               {new Date(order.createdAt).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
@@ -388,7 +429,7 @@ export function AuthDrawer({
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-mono text-sm font-medium text-[#141413] tabular-nums">
+                            <p className="font-mono text-sm font-medium text-[#2C1A12] tabular-nums">
                               {formatINR(order.total)}
                             </p>
                             <p className="text-[11px] text-[#15803D] font-medium">
@@ -403,7 +444,7 @@ export function AuthDrawer({
                               key={`${order.id}-${item.productId}-${item.variant}`}
                               className="flex items-center gap-3 text-xs"
                             >
-                              <div className="w-10 h-10 rounded-md overflow-hidden bg-[#F1F0ED] shrink-0">
+                              <div className="w-10 h-10 rounded-md overflow-hidden bg-[#F3EBDD] shrink-0">
                                 <ResilientImage
                                   src={item.image}
                                   alt={item.name}
@@ -411,12 +452,12 @@ export function AuthDrawer({
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-[#141413] truncate">{item.name}</p>
-                                <p className="text-[#6B6A65]">
+                                <p className="font-medium text-[#2C1A12] truncate">{item.name}</p>
+                                <p className="text-[#7C6354]">
                                   {item.variant} · Qty {item.quantity}
                                 </p>
                               </div>
-                              <span className="font-mono text-[#141413] tabular-nums shrink-0">
+                              <span className="font-mono text-[#2C1A12] tabular-nums shrink-0">
                                 {formatINR(item.unitPrice * item.quantity)}
                               </span>
                             </div>

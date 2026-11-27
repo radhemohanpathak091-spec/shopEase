@@ -3,15 +3,15 @@ import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   ArrowRight,
   CheckCircle2,
-  RotateCcw,
-  Search,
   ShoppingBag,
-  SlidersHorizontal,
   X,
 } from 'lucide-react';
 import { AccountPage, type AccountTab } from './components/AccountPage.tsx';
 import { AuthDrawer, type AuthSuccessMeta } from './components/AuthDrawer.tsx';
 import { CartDrawer } from './components/CartDrawer.tsx';
+import { ClothesPage } from './components/ClothesPage.tsx';
+import { FootwearPage } from './components/FootwearPage.tsx';
+import { LoadingPage } from './components/LoadingPage.tsx';
 import { ProductCard } from './components/ProductCard.tsx';
 import { ProductDetailModal } from './components/ProductDetailModal.tsx';
 import { ResilientImage } from './components/ResilientImage.tsx';
@@ -27,15 +27,48 @@ import type {
   UserProfile,
 } from './types/store.ts';
 
-type CategoryFilter = 'all' | ProductCategory;
-type PriceRangeFilter = 'all' | 'under-5000' | '5000-10000' | 'over-10000';
-type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'rating';
-
-const CATEGORY_TABS: { id: CategoryFilter; label: string }[] = [
-  { id: 'all', label: 'All Goods' },
-  { id: 'apparel', label: 'Apparel' },
-  { id: 'accessories', label: 'Accessories' },
-  { id: 'electronics', label: 'Electronics' },
+const SHOP_BY_CATEGORIES: {
+  id: ProductCategory;
+  title: string;
+  subtitle: string;
+  image: string;
+}[] = [
+  {
+    id: 'electronics',
+    title: 'Electronics',
+    subtitle: 'Audio, Keyboards & Docks',
+    image: '/src/assets/images/product_anc_headphones_1795513367126.jpg',
+  },
+  {
+    id: 'apparel',
+    title: 'Fashion',
+    subtitle: 'Jeans, Korean Pants & Shirts',
+    image: '/src/assets/images/clothes_korean_pants_1795521624857.jpg',
+  },
+  {
+    id: 'footwear',
+    title: 'Footwear',
+    subtitle: 'Sneakers, Loafers, Boots & Slides',
+    image: '/src/assets/images/product_leather_sneakers_1795523787294.jpg',
+  },
+  {
+    id: 'home-living',
+    title: 'Home & Living',
+    subtitle: 'Ceramics & Waffle Throws',
+    image: '/src/assets/images/product_pourover_set_1795523787352.jpg',
+  },
+  {
+    id: 'accessories',
+    title: 'Accessories',
+    subtitle: 'Bags, Watches & Eyewear',
+    image: '/src/assets/images/product_leather_tote_1795513368076.jpg',
+  },
+  {
+    id: 'beauty',
+    title: 'Beauty',
+    subtitle: 'Botanical Serums & Balms',
+    image: '/src/assets/images/product_hydration_serum_1795523788162.jpg',
+  },
 ];
 
 function mergeCartItems(base: CartItem[], incoming: CartItem[]): CartItem[] {
@@ -53,14 +86,7 @@ function mergeCartItems(base: CartItem[], incoming: CartItem[]): CartItem[] {
 }
 
 export default function App() {
-  const [products, setProducts] = useState<Product[]>(PRODUCTS);
-  const [catalogLoading, setCatalogLoading] = useState(false);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [priceRange, setPriceRange] = useState<PriceRangeFilter>('all');
-  const [inStockOnly, setInStockOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('featured');
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -72,10 +98,24 @@ export default function App() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
 
-  const [view, setView] = useState<'store' | 'account'>(() =>
-    typeof window !== 'undefined' && window.location.pathname === '/account' ? 'account' : 'store',
-  );
+  const [view, setView] = useState<'store' | 'clothes' | 'footwear' | 'account'>(() => {
+    if (typeof window === 'undefined') return 'store';
+    if (window.location.pathname === '/account') return 'account';
+    if (window.location.pathname === '/clothes') return 'clothes';
+    if (window.location.pathname === '/footwear') return 'footwear';
+    return 'store';
+  });
   const [accountTab, setAccountTab] = useState<AccountTab>('profile');
+
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  const [loadingMeta, setLoadingMeta] = useState<{ title: string; label: string }>({
+    title: 'shopEase',
+    label: 'Preparing clothes, accessories & tech goods...',
+  });
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(true);
+  const [routeSweepKey, setRouteSweepKey] = useState(0);
+  const [showAnnouncement, setShowAnnouncement] = useState(true);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -85,6 +125,14 @@ export default function App() {
     message: string;
   } | null>(null);
 
+  const categoriesRef = useRef<HTMLElement | null>(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const transitionTimersRef = useRef<{
+    swap?: ReturnType<typeof setTimeout>;
+    done?: ReturnType<typeof setTimeout>;
+  }>({});
+
   useEffect(() => {
     if (!notification) return;
     const timer = setTimeout(() => {
@@ -93,7 +141,26 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [notification]);
 
-  const catalogRef = useRef<HTMLElement | null>(null);
+  const overlayActive = isInitialLoading || isPageLoading;
+
+  useEffect(() => {
+    if (overlayActive) {
+      setShowLoadingOverlay(true);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShowLoadingOverlay(false);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [overlayActive]);
+
+  useEffect(() => {
+    const timers = transitionTimersRef.current;
+    return () => {
+      if (timers.swap) clearTimeout(timers.swap);
+      if (timers.done) clearTimeout(timers.done);
+    };
+  }, []);
 
   const syncCartToServer = useCallback(
     async (items: CartItem[], tokenOverride?: string | null) => {
@@ -255,26 +322,104 @@ export default function App() {
     [hydrateAuthenticatedData],
   );
 
-  useEffect(() => {
-    let mounted = true;
-    void supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-      if (data.session) {
-        await applySupabaseSession(data.session, data.session.user);
+  const transitionToView = useCallback(
+    (
+      targetView: 'store' | 'clothes' | 'footwear' | 'account',
+      options?: {
+        pushPath?: string;
+        afterSwap?: () => void;
+      },
+    ) => {
+      if (transitionTimersRef.current.swap) clearTimeout(transitionTimersRef.current.swap);
+      if (transitionTimersRef.current.done) clearTimeout(transitionTimersRef.current.done);
+
+      if (options?.pushPath && window.location.pathname !== options.pushPath) {
+        window.history.pushState(null, '', options.pushPath);
+      }
+
+      const metaByView = {
+        store: {
+          title: 'shopEase Home',
+          label: 'Loading storefront highlights & departments...',
+        },
+        clothes: {
+          title: 'Clothes Collection',
+          label: 'Loading jeans, Korean pants, linen pants & shirts...',
+        },
+        footwear: {
+          title: 'Footwear Collection',
+          label: 'Loading sneakers, suede loafers, Chelsea boots & cork slides...',
+        },
+        account: {
+          title: 'My Account',
+          label: 'Loading your profile, orders, wishlist & tracking...',
+        },
+      };
+
+      if (viewRef.current === targetView) {
+        setRouteSweepKey((k) => k + 1);
+        options?.afterSwap?.();
         return;
       }
-      try {
-        const res = await fetch('/api/auth/me');
-        if (mounted && res.ok) {
-          const meData = (await res.json()) as { token?: string; user?: UserProfile };
-          if (meData.token && meData.user) {
-            await applyBackendSession(meData.token, meData.user);
-          }
+
+      setLoadingMeta(metaByView[targetView]);
+      setShowLoadingOverlay(true);
+      setIsPageLoading(true);
+      setRouteSweepKey((k) => k + 1);
+
+      transitionTimersRef.current.swap = setTimeout(() => {
+        setView(targetView);
+        options?.afterSwap?.();
+      }, 180);
+
+      transitionTimersRef.current.done = setTimeout(() => {
+        setIsPageLoading(false);
+      }, 430);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    const startTime = Date.now();
+
+    const finishInitialLoad = () => {
+      if (!mounted) return;
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 620 - elapsed);
+      setTimeout(() => {
+        if (mounted) setIsInitialLoading(false);
+      }, remaining);
+    };
+
+    const maxBootTimer = setTimeout(() => {
+      if (mounted) setIsInitialLoading(false);
+    }, 1800);
+
+    void supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!mounted) return;
+        if (data.session) {
+          await applySupabaseSession(data.session, data.session.user);
+          return;
         }
-      } catch {
-        // No active cookie session
-      }
-    });
+        try {
+          const res = await fetch('/api/auth/me');
+          if (mounted && res.ok) {
+            const meData = (await res.json()) as { token?: string; user?: UserProfile };
+            if (meData.token && meData.user) {
+              await applyBackendSession(meData.token, meData.user);
+            }
+          }
+        } catch {
+          // No active cookie session
+        }
+      })
+      .finally(() => {
+        clearTimeout(maxBootTimer);
+        finishInitialLoad();
+      });
 
     const {
       data: { subscription },
@@ -291,83 +436,65 @@ export default function App() {
     });
 
     const handlePopState = () => {
-      setView(window.location.pathname === '/account' ? 'account' : 'store');
+      if (window.location.pathname === '/account') {
+        transitionToView('account');
+      } else if (window.location.pathname === '/clothes') {
+        transitionToView('clothes');
+      } else if (window.location.pathname === '/footwear') {
+        transitionToView('footwear');
+      } else {
+        transitionToView('store');
+      }
     };
     window.addEventListener('popstate', handlePopState);
 
     return () => {
       mounted = false;
+      clearTimeout(maxBootTimer);
       subscription.unsubscribe();
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [applyBackendSession, applySupabaseSession]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setCatalogLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (searchQuery.trim()) params.set('q', searchQuery.trim());
-        if (categoryFilter !== 'all') params.set('category', categoryFilter);
-        if (inStockOnly) params.set('inStock', 'true');
-        if (sortBy !== 'featured') params.set('sort', sortBy);
-        if (priceRange === 'under-5000') {
-          params.set('maxPrice', '4999');
-        } else if (priceRange === '5000-10000') {
-          params.set('minPrice', '5000');
-          params.set('maxPrice', '10000');
-        } else if (priceRange === 'over-10000') {
-          params.set('minPrice', '10001');
-        }
-
-        const response = await fetch(`/api/products?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        if (response.ok) {
-          const data = (await response.json()) as { products: Product[] };
-          setProducts(data.products);
-        }
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          // Retain current products on abort/network error
-        }
-      } finally {
-        setCatalogLoading(false);
-      }
-    }, 120);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [searchQuery, categoryFilter, priceRange, inStockOnly, sortBy]);
+  }, [applyBackendSession, applySupabaseSession, transitionToView]);
 
   const totalBagCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
     [cartItems],
   );
 
-  const hasActiveFilters =
-    searchQuery.trim() !== '' ||
-    categoryFilter !== 'all' ||
-    priceRange !== 'all' ||
-    inStockOnly ||
-    sortBy !== 'featured';
+  const highlightProducts = useMemo(
+    () => PRODUCTS.filter((item) => item.trending || item.bestSeller).slice(0, 6),
+    [],
+  );
 
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setCategoryFilter('all');
-    setPriceRange('all');
-    setInStockOnly(false);
-    setSortBy('featured');
-  };
+  const selectedCategoryMeta = useMemo(
+    () => SHOP_BY_CATEGORIES.find((c) => c.id === selectedCategory) ?? null,
+    [selectedCategory],
+  );
+
+  const selectedCategoryProducts = useMemo(
+    () => (selectedCategory ? PRODUCTS.filter((item) => item.category === selectedCategory) : []),
+    [selectedCategory],
+  );
 
   const openStoreView = () => {
-    setView('store');
-    if (window.location.pathname !== '/') {
-      window.history.pushState(null, '', '/');
-    }
+    transitionToView('store', {
+      pushPath: '/',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
+  };
+
+  const openClothesView = () => {
+    transitionToView('clothes', {
+      pushPath: '/clothes',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
+  };
+
+  const openFootwearView = () => {
+    transitionToView('footwear', {
+      pushPath: '/footwear',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
   };
 
   const openAccountView = (tab: AccountTab = 'profile') => {
@@ -377,22 +504,26 @@ export default function App() {
       return;
     }
     setAccountTab(tab);
-    setView('account');
-    if (window.location.pathname !== '/account') {
-      window.history.pushState(null, '', '/account');
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    transitionToView('account', {
+      pushPath: '/account',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
   };
 
-  const handleCategoryNavClick = (category: CategoryFilter) => {
-    setCategoryFilter(category);
+  const handleCategoryNavClick = (category: ProductCategory) => {
+    setSelectedCategory(category);
     if (view !== 'store') {
-      openStoreView();
-      setTimeout(() => {
-        catalogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 60);
+      transitionToView('store', {
+        pushPath: '/',
+        afterSwap: () => {
+          setTimeout(() => {
+            categoriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 80);
+        },
+      });
     } else {
-      catalogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setRouteSweepKey((k) => k + 1);
+      categoriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -441,6 +572,24 @@ export default function App() {
       throw new Error(data.error || 'Could not save account details.');
     }
     setUser(data.user);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        await supabase.auth.updateUser({
+          data: {
+            name: data.user.name,
+            full_name: data.user.name,
+            display_name: data.user.name,
+            dob: data.user.dob ?? null,
+            phone: data.user.phone ?? null,
+            defaultAddress: data.user.defaultAddress ?? null,
+          },
+        });
+      }
+    } catch {
+      // Backend profile is saved even if Supabase metadata update fails
+    }
   };
 
   const handleUpdateQuantity = (productId: string, variant: string, quantity: number) => {
@@ -511,7 +660,9 @@ export default function App() {
     if (meta?.isNewAccount) {
       setNotification({
         title: 'Account Created',
-        message: 'You have successfully created an account. Welcome to shopEase!',
+        message: meta.supabaseSynced
+          ? 'You have successfully created an account. Your details are saved in shopEase and Supabase!'
+          : 'You have successfully created an account in shopEase. Supabase Auth paused sync due to its email rate limit—turn off "Confirm email" in Supabase Auth or add SUPABASE_SECRET_KEY in Secrets to sync every signup immediately.',
       });
     }
   };
@@ -565,9 +716,49 @@ export default function App() {
   const firstName = user ? user.name.split(' ')[0] : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8F8F7] text-[#141413]">
+    <div className="min-h-screen flex flex-col bg-[#FBF6EE] text-[#2C1A12]">
+      {view === 'store' && showAnnouncement && (
+        <div
+          role="region"
+          aria-label="Store announcement"
+          className="bg-[#3B2316] text-[#FFFDF9] border-b border-[#4E2C19] h-9 px-4 flex items-center justify-between gap-3 text-xs"
+        >
+          <span className="hidden sm:inline-block w-7 shrink-0" aria-hidden="true" />
+          <div className="flex items-center justify-center gap-2 sm:gap-3 min-w-0 truncate">
+            <span className="truncate">
+              Discover new arrivals. Exclusive styles, just for you
+            </span>
+            <a
+              href="#trending"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="text-[#B8DDF5] hover:text-[#FFFDF9] font-medium underline underline-offset-2 whitespace-nowrap shrink-0 transition-colors"
+            >
+              Shop Trending
+            </a>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAnnouncement(false)}
+            aria-label="Dismiss announcement"
+            className="w-7 h-7 flex items-center justify-center rounded text-[#E4D8C6] hover:text-[#FFFDF9] hover:bg-[#4E2C19] transition-colors shrink-0"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Top Bar Contract: [Brand title, one line] — [4-5 nav links] — [1 primary action] */}
-      <header className="sticky top-0 z-40 bg-[#F8F8F7]/95 backdrop-blur-sm border-b border-[#E5E4DF]">
+      <header className="sticky top-0 z-40 bg-[#FBF6EE]/95 backdrop-blur-sm border-b border-[#E4D8C6]">
+        {routeSweepKey > 0 && (
+          <div
+            key={routeSweepKey}
+            aria-hidden="true"
+            className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#6B3F26] via-[#2D6F99] to-[#68B0DF] animate-route-sweep pointer-events-none"
+          />
+        )}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
           <a
             href="/"
@@ -576,25 +767,25 @@ export default function App() {
               openStoreView();
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="font-display text-base sm:text-lg font-bold tracking-tight text-[#141413] whitespace-nowrap shrink-0"
+            className="font-display text-base sm:text-lg font-bold tracking-tight text-[#2C1A12] whitespace-nowrap shrink-0"
           >
             shopEase
           </a>
 
           <nav
             aria-label="Primary navigation"
-            className="hidden md:flex items-center gap-6 text-sm font-medium text-[#575652]"
+            className="hidden md:flex items-center gap-4 lg:gap-5 text-xs lg:text-sm font-medium text-[#63493B] min-w-0 overflow-x-auto [scrollbar-width:none]"
           >
             <button
               type="button"
               onClick={() => {
-                setCategoryFilter('all');
+                setSelectedCategory(null);
                 openStoreView();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className={`hover:text-[#141413] transition-colors whitespace-nowrap shrink-0 ${
-                view === 'store' && categoryFilter === 'all'
-                  ? 'text-[#141413] underline underline-offset-4'
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'store' && selectedCategory === null
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
             >
@@ -602,10 +793,10 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => handleCategoryNavClick('apparel')}
-              className={`hover:text-[#141413] transition-colors whitespace-nowrap shrink-0 ${
-                view === 'store' && categoryFilter === 'apparel'
-                  ? 'text-[#141413] underline underline-offset-4'
+              onClick={openClothesView}
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'clothes'
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
             >
@@ -613,10 +804,32 @@ export default function App() {
             </button>
             <button
               type="button"
+              onClick={openFootwearView}
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'footwear'
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
+                  : ''
+              }`}
+            >
+              Footwear
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCategoryNavClick('home-living')}
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'store' && selectedCategory === 'home-living'
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
+                  : ''
+              }`}
+            >
+              Home &amp; Living
+            </button>
+            <button
+              type="button"
               onClick={() => handleCategoryNavClick('accessories')}
-              className={`hover:text-[#141413] transition-colors whitespace-nowrap shrink-0 ${
-                view === 'store' && categoryFilter === 'accessories'
-                  ? 'text-[#141413] underline underline-offset-4'
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'store' && selectedCategory === 'accessories'
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
             >
@@ -625,9 +838,9 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleCategoryNavClick('electronics')}
-              className={`hover:text-[#141413] transition-colors whitespace-nowrap shrink-0 ${
-                view === 'store' && categoryFilter === 'electronics'
-                  ? 'text-[#141413] underline underline-offset-4'
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'store' && selectedCategory === 'electronics'
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
             >
@@ -635,9 +848,22 @@ export default function App() {
             </button>
             <button
               type="button"
+              onClick={() => handleCategoryNavClick('beauty')}
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'store' && selectedCategory === 'beauty'
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
+                  : ''
+              }`}
+            >
+              Beauty
+            </button>
+            <button
+              type="button"
               onClick={() => openAccountView('profile')}
-              className={`hover:text-[#141413] transition-colors whitespace-nowrap shrink-0 ${
-                view === 'account' ? 'text-[#141413] underline underline-offset-4' : ''
+              className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                view === 'account'
+                  ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
+                  : ''
               }`}
             >
               {firstName ? `Account (${firstName})` : 'Account'}
@@ -648,7 +874,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 text-xs font-medium text-white bg-[#141413] hover:bg-[#1D4ED8] rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
+              className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 text-xs font-medium text-[#FFFDF9] bg-[#6B3F26] hover:bg-[#4E2C19] rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6]"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               <span className="font-mono tabular-nums">Bag ({totalBagCount})</span>
@@ -658,6 +884,7 @@ export default function App() {
       </header>
 
       <main id="top" className="flex-1">
+        <div key={view} className="animate-page-enter">
         {view === 'account' && user ? (
           <AccountPage
             user={user}
@@ -673,31 +900,63 @@ export default function App() {
             onSelectProduct={(product) => setSelectedProduct(product)}
             onLogout={handleLogout}
           />
+        ) : view === 'clothes' ? (
+          <ClothesPage
+            products={PRODUCTS}
+            justAddedId={justAddedId}
+            wishlistIds={wishlistIds}
+            onBackToHome={() => {
+              setSelectedCategory(null);
+              openStoreView();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onQuickAdd={(product) => handleAddToCart(product)}
+            onToggleWishlist={handleToggleWishlist}
+          />
+        ) : view === 'footwear' ? (
+          <FootwearPage
+            products={PRODUCTS}
+            justAddedId={justAddedId}
+            wishlistIds={wishlistIds}
+            onBackToHome={() => {
+              setSelectedCategory(null);
+              openStoreView();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onQuickAdd={(product) => handleAddToCart(product)}
+            onToggleWishlist={handleToggleWishlist}
+          />
         ) : (
           <>
         {/* Section 1: Storefront Hero */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
-            <div className="lg:col-span-5 flex flex-col justify-between bg-white border border-[#E5E4DF] rounded-2xl p-7 sm:p-10">
+            <div className="lg:col-span-5 flex flex-col justify-between bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl p-7 sm:p-10">
               <div>
-                <p className="text-xs font-medium text-[#575652]">
-                  New Arrivals · Clothes, Accessories & Electronics
+                <p className="text-xs font-medium text-[#2D6F99]">
+                  New Arrivals · Clothes, Accessories & Tech Goods
                 </p>
                 <h1
-                  className="mt-4 font-display font-semibold tracking-tight text-[#141413] leading-[1.08]"
+                  className="mt-4 font-display font-semibold tracking-tight text-[#2C1A12] leading-[1.08]"
                   style={{ fontSize: 'clamp(2.25rem, 3.6vw, 3.25rem)', textWrap: 'balance' }}
                 >
                   Everyday style and smart tech, all in one place.
                 </h1>
-                <p className="mt-5 text-[15px] text-[#575652] leading-relaxed max-w-[42ch]">
-                  Shop comfortable clothes, classic accessories, and reliable electronics—made for daily life and priced clearly in rupees.
+                <p className="mt-5 text-[15px] text-[#63493B] leading-relaxed max-w-[42ch]">
+                  Shop comfortable clothes, classic accessories, and reliable tech goods—made for daily life and priced clearly in rupees.
                 </p>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-[#EFEFED] flex flex-wrap items-center gap-3">
+              <div className="mt-8 pt-6 border-t border-[#EFE5D6] flex flex-wrap items-center gap-3">
                 <a
-                  href="#catalog"
-                  className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0"
+                  href="#trending"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0"
                 >
                   Shop Now
                   <ArrowRight className="w-4 h-4" />
@@ -712,14 +971,14 @@ export default function App() {
                       setIsAuthOpen(true);
                     }
                   }}
-                  className="inline-flex items-center min-h-[44px] px-4 py-2.5 text-sm font-medium text-[#141413] bg-[#F8F8F7] hover:bg-[#EFEFED] border border-[#E5E4DF] rounded-lg transition-colors whitespace-nowrap shrink-0"
+                  className="inline-flex items-center min-h-[44px] px-4 py-2.5 text-sm font-medium text-[#1E4E6E] bg-[#E1F0FA] hover:bg-[#CBE4F6] border border-[#A8D4F0] rounded-lg transition-colors whitespace-nowrap shrink-0"
                 >
                   {user ? 'My Account & Orders' : 'Sign In / Join'}
                 </button>
               </div>
             </div>
 
-            <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-[#E5E4DF] bg-[#EFEFED] min-h-[280px] sm:min-h-[380px]">
+            <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-[#E4D8C6] bg-[#F3EBDD] min-h-[280px] sm:min-h-[380px]">
               <ResilientImage
                 src={HERO_IMAGE}
                 alt="shopEase studio collection featuring charcoal merino overshirt, anodized aluminum headphones, and espresso leather briefcase"
@@ -729,231 +988,204 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white border border-[#E5E4DF] rounded-xl px-6 py-4 text-xs">
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl px-6 py-4 text-xs">
             <div className="flex items-center justify-between sm:justify-start sm:gap-3">
-              <span className="font-semibold text-[#141413]">Free Delivery</span>
-              <span className="text-[#6B6A65]">Orders above ₹4,999</span>
+              <span className="font-semibold text-[#2C1A12]">Free Delivery</span>
+              <span className="text-[#7C6354]">Orders above ₹4,999</span>
             </div>
-            <div className="flex items-center justify-between sm:justify-start sm:gap-3 sm:border-l sm:border-[#EFEFED] sm:pl-6">
-              <span className="font-semibold text-[#141413]">Safe Checkout</span>
-              <span className="text-[#6B6A65]">Secure sign-in & order tracking</span>
+            <div className="flex items-center justify-between sm:justify-start sm:gap-3 sm:border-l sm:border-[#EFE5D6] sm:pl-6">
+              <span className="font-semibold text-[#2C1A12]">Safe Checkout</span>
+              <span className="text-[#7C6354]">Secure sign-in & order tracking</span>
             </div>
-            <div className="flex items-center justify-between sm:justify-start sm:gap-3 sm:border-l sm:border-[#EFEFED] sm:pl-6">
-              <span className="font-semibold text-[#141413]">Easy Returns</span>
-              <span className="text-[#6B6A65]">30-day return & warranty support</span>
+            <div className="flex items-center justify-between sm:justify-start sm:gap-3 sm:border-l sm:border-[#EFE5D6] sm:pl-6">
+              <span className="font-semibold text-[#2C1A12]">Easy Returns</span>
+              <span className="text-[#7C6354]">30-day return & warranty support</span>
             </div>
           </div>
         </section>
 
-        {/* Section 2: Search, Multi-Facet Filters & Product Grid */}
+        {/* Section 2: Shop by Categories */}
         <section
-          id="catalog"
-          ref={catalogRef}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
+          id="categories"
+          ref={categoriesRef}
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-t border-[#E4D8C6]"
         >
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
             <div>
-              <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#141413]">
-                Curated Catalog
+              <p className="text-xs font-medium text-[#2D6F99]">Browse Departments</p>
+              <h2 className="mt-1 font-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#2C1A12]">
+                Shop by Categories
               </h2>
-              <p className="mt-1 text-sm text-[#575652]">
-                Filter by department, price bracket, stock availability, or search materials.
-              </p>
             </div>
-            <div className="flex items-center gap-3 text-xs text-[#575652]">
-              <span className="font-mono tabular-nums">
-                {catalogLoading
-                  ? 'Updating...'
-                  : `Showing ${products.length} of ${PRODUCTS.length} items`}
-              </span>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1.5 text-[#1D4ED8] hover:text-[#1E40AF] font-medium whitespace-nowrap shrink-0"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Reset Filters
-                </button>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={openClothesView}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#2D6F99] hover:text-[#1E4E6E] whitespace-nowrap self-start sm:self-auto"
+            >
+              Open Full Clothes Collection
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Search & Filter Toolbar */}
-          <div className="bg-white border border-[#E5E4DF] rounded-xl p-4 mb-8 space-y-4">
-            <div className="flex flex-col lg:flex-row gap-3">
-              {/* Search Bar */}
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-[#6B6A65] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search clothes, watches, headphones, merino, titanium..."
-                  aria-label="Search products"
-                  className="w-full h-11 pl-10 pr-10 text-sm bg-[#F8F8F7] border border-[#E5E4DF] rounded-lg text-[#141413] placeholder:text-[#8E8D87] focus:outline-none focus:bg-white focus:border-[#1D4ED8]"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    aria-label="Clear search query"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#6B6A65] hover:text-[#141413] rounded"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Category Segmented Tabs */}
-              <div
-                role="tablist"
-                aria-label="Product categories"
-                className="flex items-center gap-1 p-1 bg-[#F1F0ED] rounded-lg overflow-x-auto"
-              >
-                {CATEGORY_TABS.map((tab) => {
-                  const active = categoryFilter === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => setCategoryFilter(tab.id)}
-                      className={`min-h-[36px] px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                        active
-                          ? 'bg-white text-[#141413] shadow-xs'
-                          : 'text-[#575652] hover:text-[#141413]'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#EFEFED]">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#575652] mr-1">
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  Filters:
-                </span>
-
-                <select
-                  aria-label="Filter by price range"
-                  value={priceRange}
-                  onChange={(e) => setPriceRange(e.target.value as PriceRangeFilter)}
-                  className="h-10 px-3 text-xs font-medium bg-[#F8F8F7] border border-[#E5E4DF] rounded-lg text-[#141413] focus:outline-none focus:border-[#1D4ED8]"
-                >
-                  <option value="all">All Prices</option>
-                  <option value="under-5000">Under ₹5,000</option>
-                  <option value="5000-10000">₹5,000 – ₹10,000</option>
-                  <option value="over-10000">Above ₹10,000</option>
-                </select>
-
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {SHOP_BY_CATEGORIES.map((cat) => {
+              const count = PRODUCTS.filter((p) => p.category === cat.id).length;
+              const isSelected = selectedCategory === cat.id;
+              return (
                 <button
+                  key={cat.id}
                   type="button"
-                  aria-pressed={inStockOnly}
-                  onClick={() => setInStockOnly((prev) => !prev)}
-                  className={`min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
-                    inStockOnly
-                      ? 'bg-[#141413] text-white border-[#141413]'
-                      : 'bg-[#F8F8F7] text-[#141413] border-[#E5E4DF] hover:border-[#141413]'
+                  onClick={() => {
+                    if (cat.id === 'apparel') {
+                      setSelectedCategory(null);
+                      openClothesView();
+                      return;
+                    }
+                    if (cat.id === 'footwear') {
+                      setSelectedCategory(null);
+                      openFootwearView();
+                      return;
+                    }
+                    setSelectedCategory((prev) => (prev === cat.id ? null : cat.id));
+                  }}
+                  className={`group text-left rounded-xl overflow-hidden border transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
+                    isSelected
+                      ? 'bg-[#E1F0FA] border-[#5CA4D6]'
+                      : 'bg-[#FFFDF9] border-[#E4D8C6] hover:border-[#6B3F26]'
                   }`}
                 >
-                  In Stock Only
+                  <div className="aspect-[4/3] w-full bg-[#F3EBDD] overflow-hidden">
+                    <ResilientImage
+                      src={cat.image}
+                      alt={cat.title}
+                      fallbackLabel={cat.title}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <div className="p-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-display text-sm font-semibold text-[#2C1A12] truncate">
+                        {cat.title}
+                      </h3>
+                      <span className="font-mono text-[11px] text-[#7C6354] tabular-nums shrink-0">
+                        {count}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-[#63493B] truncate">{cat.subtitle}</p>
+                  </div>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => openAccountView('profile')}
-                  className="md:hidden min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg border border-[#E5E4DF] bg-[#F8F8F7] text-[#141413] whitespace-nowrap shrink-0"
-                >
-                  {firstName ? `Account (${firstName})` : 'Account'}
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <label htmlFor="sort-select" className="text-xs text-[#6B6A65]">
-                  Sort
-                </label>
-                <select
-                  id="sort-select"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="h-10 px-3 text-xs font-medium bg-[#F8F8F7] border border-[#E5E4DF] rounded-lg text-[#141413] focus:outline-none focus:border-[#1D4ED8]"
-                >
-                  <option value="featured">Featured</option>
-                  <option value="price-asc">Price: Low to High</option>
-                  <option value="price-desc">Price: High to Low</option>
-                  <option value="rating">Highest Rated</option>
-                </select>
-              </div>
-            </div>
+              );
+            })}
           </div>
 
-          {/* Product Grid */}
-          {products.length === 0 ? (
-            <div className="bg-white border border-[#E5E4DF] rounded-2xl p-12 text-center">
-              <h3 className="font-display text-lg font-semibold text-[#141413]">
-                No products match those filters
-              </h3>
-              <p className="text-sm text-[#575652] mt-1.5 max-w-md mx-auto">
-                Try clearing your search terms or switching back to all categories and price ranges.
-              </p>
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="mt-5 min-h-[42px] px-5 py-2.5 bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-medium rounded-lg transition-colors"
-              >
-                Reset All Filters
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  justAddedId={justAddedId}
-                  isWishlisted={wishlistIds.includes(product.id)}
-                  onSelect={(item) => setSelectedProduct(item)}
-                  onQuickAdd={(item) => handleAddToCart(item)}
-                  onToggleWishlist={handleToggleWishlist}
-                />
-              ))}
+          {selectedCategoryMeta && selectedCategoryProducts.length > 0 && (
+            <div
+              key={selectedCategoryMeta.id}
+              className="mt-6 pt-6 border-t border-[#E4D8C6] animate-panel-enter"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                <div>
+                  <h3 className="font-display text-lg font-semibold text-[#2C1A12]">
+                    {selectedCategoryMeta.title}
+                  </h3>
+                  <p className="text-xs text-[#63493B]">
+                    {selectedCategoryMeta.subtitle} · {selectedCategoryProducts.length} items
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedCategoryMeta.id === 'apparel' && (
+                    <button
+                      type="button"
+                      onClick={openClothesView}
+                      className="inline-flex items-center gap-1.5 min-h-[34px] px-3 py-1.5 text-xs font-medium text-[#FFFDF9] bg-[#6B3F26] hover:bg-[#4E2C19] rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      Open Clothes Page
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory(null)}
+                    aria-label={`Close ${selectedCategoryMeta.title} preview`}
+                    className="inline-flex items-center gap-1 min-h-[34px] px-3 py-1.5 text-xs font-medium text-[#1E4E6E] bg-[#E1F0FA] hover:bg-[#CBE4F6] border border-[#A8D4F0] rounded-lg transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                {selectedCategoryProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    justAddedId={justAddedId}
+                    isWishlisted={wishlistIds.includes(product.id)}
+                    onSelect={(item) => setSelectedProduct(item)}
+                    onQuickAdd={(item) => handleAddToCart(item)}
+                    onToggleWishlist={handleToggleWishlist}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </section>
 
-        {/* Section 3: Material & Craftsmanship Standards */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-[#E5E4DF]">
+        {/* Section 3: Trending / Best Selling Products */}
+        <section
+          id="trending"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-t border-[#E4D8C6]"
+        >
+          <div className="mb-6">
+            <p className="text-xs font-medium text-[#2D6F99]">Customer Favorites</p>
+            <h2 className="mt-1 font-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#2C1A12]">
+              Trending & Best Selling Products
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {highlightProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                justAddedId={justAddedId}
+                isWishlisted={wishlistIds.includes(product.id)}
+                onSelect={(item) => setSelectedProduct(item)}
+                onQuickAdd={(item) => handleAddToCart(item)}
+                onToggleWishlist={handleToggleWishlist}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Section 4: Material & Craftsmanship Standards */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-[#E4D8C6]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <p className="font-mono text-xs text-[#6B6A65]">01</p>
-              <h3 className="mt-2 font-display text-lg font-semibold text-[#141413]">
+              <p className="font-mono text-xs text-[#2D6F99]">01</p>
+              <h3 className="mt-2 font-display text-lg font-semibold text-[#2C1A12]">
                 Tailored Textiles
               </h3>
-              <p className="mt-2 text-sm text-[#575652] leading-relaxed">
+              <p className="mt-2 text-sm text-[#63493B] leading-relaxed">
                 Double-faced Italian merino, shuttle-loomed Japanese selvedge, and heavyweight organic loopback cotton selected for multi-season longevity.
               </p>
             </div>
             <div>
-              <p className="font-mono text-xs text-[#6B6A65]">02</p>
-              <h3 className="mt-2 font-display text-lg font-semibold text-[#141413]">
+              <p className="font-mono text-xs text-[#2D6F99]">02</p>
+              <h3 className="mt-2 font-display text-lg font-semibold text-[#2C1A12]">
                 Architectural Carry
               </h3>
-              <p className="mt-2 text-sm text-[#575652] leading-relaxed">
+              <p className="mt-2 text-sm text-[#63493B] leading-relaxed">
                 Vegetable-tanned full-grain hides, Grade-5 titanium watch cases, and hand-finished Japanese cellulose acetate built for daily utility.
               </p>
             </div>
             <div>
-              <p className="font-mono text-xs text-[#6B6A65]">03</p>
-              <h3 className="mt-2 font-display text-lg font-semibold text-[#141413]">
-                Precision Electronics
+              <p className="font-mono text-xs text-[#2D6F99]">03</p>
+              <h3 className="mt-2 font-display text-lg font-semibold text-[#2C1A12]">
+                Precision Tech Goods
               </h3>
-              <p className="mt-2 text-sm text-[#575652] leading-relaxed">
+              <p className="mt-2 text-sm text-[#63493B] leading-relaxed">
                 CNC-milled aluminum acoustics, open-firmware mechanical keyboards, and weighted Qi2 power docks engineered without disposable plastics.
               </p>
             </div>
@@ -961,50 +1193,126 @@ export default function App() {
         </section>
           </>
         )}
+        </div>
       </main>
 
-      {/* Section 4: Footer */}
-      <footer className="border-t border-[#E5E4DF] bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-[#6B6A65]">
-          <p className="font-medium text-[#141413]">shopEase</p>
-          <div className="flex flex-wrap items-center gap-6">
-            <button
-              type="button"
-              onClick={() => handleCategoryNavClick('apparel')}
-              className="hover:text-[#141413] transition-colors"
-            >
-              Apparel
-            </button>
-            <button
-              type="button"
-              onClick={() => handleCategoryNavClick('accessories')}
-              className="hover:text-[#141413] transition-colors"
-            >
-              Accessories
-            </button>
-            <button
-              type="button"
-              onClick={() => handleCategoryNavClick('electronics')}
-              className="hover:text-[#141413] transition-colors"
-            >
-              Electronics
-            </button>
-            <button
-              type="button"
-              onClick={() => openAccountView('orders')}
-              className="hover:text-[#141413] transition-colors"
-            >
-              Account & Orders
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="hover:text-[#141413] transition-colors"
-            >
-              Shopping Bag
-            </button>
+      {/* Footer Section */}
+      <footer className="border-t border-[#E4D8C6] bg-[#FFFDF9]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-[#EFE5D6]">
+            <div className="space-y-3">
+              <p className="font-display text-lg font-bold tracking-tight text-[#2C1A12]">
+                shopEase
+              </p>
+              <p className="text-xs text-[#63493B] leading-relaxed max-w-[28ch]">
+                Everyday clothes, electronics, footwear, home & living, accessories, and beauty—curated in Indian Rupee pricing.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="inline-flex items-center gap-1.5 min-h-[34px] px-3 py-1.5 text-xs font-medium text-[#1E4E6E] bg-[#E1F0FA] hover:bg-[#CBE4F6] border border-[#A8D4F0] rounded-lg transition-colors whitespace-nowrap"
+              >
+                Back to Top
+              </button>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <h3 className="font-display text-xs font-semibold text-[#2C1A12]">
+                Shop by Categories
+              </h3>
+              <ul className="space-y-2 text-[#63493B]">
+                <li>
+                  <button type="button" onClick={openClothesView} className="hover:text-[#2C1A12] transition-colors">
+                    Fashion & Clothes
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => handleCategoryNavClick('electronics')} className="hover:text-[#2C1A12] transition-colors">
+                    Electronics
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={openFootwearView} className="hover:text-[#2C1A12] transition-colors">
+                    Footwear
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => handleCategoryNavClick('home-living')} className="hover:text-[#2C1A12] transition-colors">
+                    Home & Living
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => handleCategoryNavClick('accessories')} className="hover:text-[#2C1A12] transition-colors">
+                    Accessories
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => handleCategoryNavClick('beauty')} className="hover:text-[#2C1A12] transition-colors">
+                    Beauty
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <h3 className="font-display text-xs font-semibold text-[#2C1A12]">
+                Account & Orders
+              </h3>
+              <ul className="space-y-2 text-[#63493B]">
+                <li>
+                  <button type="button" onClick={() => openAccountView('profile')} className="hover:text-[#2C1A12] transition-colors">
+                    My Profile & DOB
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => openAccountView('orders')} className="hover:text-[#2C1A12] transition-colors">
+                    Orders & Tracking
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => openAccountView('wishlist')} className="hover:text-[#2C1A12] transition-colors">
+                    Saved Wishlist
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => setIsCartOpen(true)} className="hover:text-[#2C1A12] transition-colors">
+                    Shopping Bag ({totalBagCount})
+                  </button>
+                </li>
+                {!user && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('register');
+                        setIsAuthOpen(true);
+                      }}
+                      className="hover:text-[#2C1A12] transition-colors"
+                    >
+                      Sign In / Create Account
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <h3 className="font-display text-xs font-semibold text-[#2C1A12]">
+                Customer Care
+              </h3>
+              <ul className="space-y-2 text-[#63493B]">
+                <li>Free delivery on orders above ₹4,999</li>
+                <li>30-day easy returns & size exchange</li>
+                <li>Card & Cash on Delivery across India</li>
+                <li className="text-[#2D6F99] font-medium">support@shopease.in</li>
+              </ul>
+            </div>
           </div>
-          <p>© 2026 shopEase</p>
+
+          <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#7C6354]">
+            <p>© 2026 shopEase. All rights reserved.</p>
+            <p className="font-mono tabular-nums">All prices inclusive of store catalog INR (₹)</p>
+          </div>
         </div>
       </footer>
 
@@ -1048,14 +1356,14 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-20 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm bg-white border border-[#BBF7D0] rounded-xl shadow-lg p-4 flex items-start gap-3"
+          className="fixed top-20 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm bg-[#FFFDF9] border border-[#A8D4F0] rounded-xl shadow-lg p-4 flex items-start gap-3 animate-toast-enter"
         >
           <CheckCircle2 className="w-5 h-5 text-[#15803D] shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-display text-sm font-semibold text-[#141413]">
+            <p className="font-display text-sm font-semibold text-[#2C1A12]">
               {notification.title}
             </p>
-            <p className="mt-1 text-xs text-[#4A4945] leading-relaxed">
+            <p className="mt-1 text-xs text-[#63493B] leading-relaxed">
               {notification.message}
             </p>
           </div>
@@ -1063,11 +1371,20 @@ export default function App() {
             type="button"
             onClick={() => setNotification(null)}
             aria-label="Dismiss notification"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#6B6A65] hover:bg-[#F1F0ED] hover:text-[#141413] transition-colors shrink-0"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#7C6354] hover:bg-[#F3EBDD] hover:text-[#2C1A12] transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
+      )}
+
+      {showLoadingOverlay && (
+        <LoadingPage
+          isVisible={overlayActive}
+          title={loadingMeta.title}
+          label={loadingMeta.label}
+          mode={isInitialLoading ? 'initial' : 'transition'}
+        />
       )}
     </div>
   );

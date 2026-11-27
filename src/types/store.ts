@@ -1,4 +1,21 @@
-export type ProductCategory = 'apparel' | 'accessories' | 'electronics';
+export type ProductCategory =
+  | 'apparel'
+  | 'accessories'
+  | 'electronics'
+  | 'footwear'
+  | 'home-living'
+  | 'beauty';
+export type ClothesSubCategory =
+  | 'jeans'
+  | 'korean-pants'
+  | 'linen-pants'
+  | 'shirts'
+  | 'outerwear';
+export type FootwearSubCategory =
+  | 'sneakers'
+  | 'loafers'
+  | 'boots'
+  | 'slides';
 
 export interface ProductSpec {
   label: string;
@@ -11,11 +28,14 @@ export interface Product {
   name: string;
   brand: string;
   category: ProductCategory;
+  subCategory?: ClothesSubCategory | FootwearSubCategory;
   categoryLabel: string;
   price: number;
   rating: number;
   reviewCount: number;
   inStock: boolean;
+  trending?: boolean;
+  bestSeller?: boolean;
   tag?: string;
   material: string;
   description: string;
@@ -46,6 +66,7 @@ export interface UserProfile {
   dob?: string;
   phone?: string;
   defaultAddress?: ShippingAddress;
+  supabaseSynced?: boolean;
   createdAt: string;
 }
 

@@ -22,6 +22,7 @@ import type {
 
 interface StoredUser {
   id: string;
+  supabaseId?: string;
   name: string;
   email: string;
   dob?: string;
@@ -214,6 +215,7 @@ function toPublicUser(user: StoredUser): UserProfile {
     dob: user.dob,
     phone: user.phone,
     defaultAddress: user.defaultAddress,
+    supabaseSynced: Boolean(user.supabaseId),
     createdAt: user.createdAt,
   };
 }
@@ -270,8 +272,94 @@ const RAW_SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLIC_KEY?.trim() || '';
 const SUPABASE_ANON_KEY = /^(sb_publishable_|eyJ)/i.test(RAW_SUPABASE_KEY)
   ? RAW_SUPABASE_KEY.replace(/^:/, '')
   : 'sb_publishable_8CHxOlXXoQbNSJeWOOEJjg_F4x5_ZUE';
+const SUPABASE_ADMIN_KEY = (
+  process.env.SUPABASE_SECRET_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  ''
+)
+  .trim()
+  .replace(/^:/, '');
 
-async function verifySupabaseBearer(token: string): Promise<StoredUser | null> {
+interface SupabaseUserMetadata {
+  name?: string;
+  full_name?: string;
+  display_name?: string;
+  dob?: string | null;
+  phone?: string | null;
+  defaultAddress?: ShippingAddress | null;
+}
+
+async function createSupabaseUserViaAdmin(params: {
+  email: string;
+  password: string;
+  name: string;
+  dob?: string;
+  phone?: string;
+  defaultAddress?: ShippingAddress;
+}): Promise<string | null> {
+  if (!SUPABASE_ADMIN_KEY) return null;
+  try {
+    const response = await fetch(`${SUPABASE_AUTH_BASE}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ADMIN_KEY,
+        Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`,
+      },
+      body: JSON.stringify({
+        email: params.email,
+        password: params.password,
+        email_confirm: true,
+        user_metadata: {
+          name: params.name,
+          full_name: params.name,
+          display_name: params.name,
+          dob: params.dob ?? null,
+          phone: params.phone ?? null,
+          defaultAddress: params.defaultAddress ?? null,
+        },
+      }),
+    });
+    if (response.ok) {
+      const created = (await response.json()) as { id?: unknown };
+      return typeof created.id === 'string' ? created.id : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function updateSupabaseUserMetadataViaAdmin(
+  supabaseUserId: string | undefined,
+  metadata: SupabaseUserMetadata,
+): Promise<boolean> {
+  if (!SUPABASE_ADMIN_KEY || !supabaseUserId) return false;
+  try {
+    const response = await fetch(
+      `${SUPABASE_AUTH_BASE}/auth/v1/admin/users/${encodeURIComponent(supabaseUserId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ADMIN_KEY,
+          Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`,
+        },
+        body: JSON.stringify({ user_metadata: metadata }),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchSupabaseUserByBearer(token: string): Promise<{
+  id: string;
+  email: string;
+  createdAt?: string;
+  metadata?: SupabaseUserMetadata;
+} | null> {
   try {
     const response = await fetch(`${SUPABASE_AUTH_BASE}/auth/v1/user`, {
       headers: {
@@ -284,35 +372,76 @@ async function verifySupabaseBearer(token: string): Promise<StoredUser | null> {
       id?: unknown;
       email?: unknown;
       created_at?: unknown;
-      user_metadata?: { name?: unknown };
+      user_metadata?: SupabaseUserMetadata;
     };
     if (typeof sbUser.id !== 'string' || typeof sbUser.email !== 'string') {
       return null;
     }
-    let user = db.users.find((u) => u.id === sbUser.id);
-    if (!user) {
-      const displayName =
-        typeof sbUser.user_metadata?.name === 'string' && sbUser.user_metadata.name.trim()
-          ? sbUser.user_metadata.name.trim()
-          : sbUser.email.split('@')[0] || 'Shopper';
-      user = {
-        id: sbUser.id,
-        name: displayName,
-        email: sbUser.email,
-        salt: '',
-        passwordHash: '',
-        createdAt: typeof sbUser.created_at === 'string' ? sbUser.created_at : new Date().toISOString(),
-      };
-      db.users.push(user);
-      if (!db.carts[user.id]) {
-        db.carts[user.id] = [];
-      }
-      saveStore();
-    }
-    return user;
+    return {
+      id: sbUser.id,
+      email: sbUser.email,
+      createdAt: typeof sbUser.created_at === 'string' ? sbUser.created_at : undefined,
+      metadata: sbUser.user_metadata,
+    };
   } catch {
     return null;
   }
+}
+
+async function verifySupabaseBearer(token: string): Promise<StoredUser | null> {
+  const sbUser = await fetchSupabaseUserByBearer(token);
+  if (!sbUser) return null;
+
+  let user = db.users.find(
+    (u) =>
+      u.id === sbUser.id ||
+      u.supabaseId === sbUser.id ||
+      u.email.toLowerCase() === sbUser.email.toLowerCase(),
+  );
+
+  const metaName =
+    (typeof sbUser.metadata?.full_name === 'string' && sbUser.metadata.full_name.trim()) ||
+    (typeof sbUser.metadata?.name === 'string' && sbUser.metadata.name.trim()) ||
+    '';
+
+  if (!user) {
+    const displayName = metaName || sbUser.email.split('@')[0] || 'Shopper';
+    user = {
+      id: sbUser.id,
+      supabaseId: sbUser.id,
+      name: displayName,
+      email: sbUser.email,
+      dob: typeof sbUser.metadata?.dob === 'string' ? sbUser.metadata.dob : undefined,
+      phone: typeof sbUser.metadata?.phone === 'string' ? sbUser.metadata.phone : undefined,
+      defaultAddress: sbUser.metadata?.defaultAddress || undefined,
+      salt: '',
+      passwordHash: '',
+      createdAt: sbUser.createdAt || new Date().toISOString(),
+    };
+    db.users.push(user);
+    if (!db.carts[user.id]) {
+      db.carts[user.id] = [];
+    }
+    saveStore();
+  } else {
+    let dirty = false;
+    if (user.supabaseId !== sbUser.id) {
+      user.supabaseId = sbUser.id;
+      dirty = true;
+    }
+    if (!user.dob && typeof sbUser.metadata?.dob === 'string' && sbUser.metadata.dob) {
+      user.dob = sbUser.metadata.dob;
+      dirty = true;
+    }
+    if (!user.phone && typeof sbUser.metadata?.phone === 'string' && sbUser.metadata.phone) {
+      user.phone = sbUser.metadata.phone;
+      dirty = true;
+    }
+    if (dirty) {
+      saveStore();
+    }
+  }
+  return user;
 }
 
 async function requireAuth(
@@ -373,7 +502,12 @@ async function startServer(): Promise<void> {
     const maxPrice = typeof req.query.maxPrice === 'string' ? Number(req.query.maxPrice) : Number.POSITIVE_INFINITY;
 
     let filtered = PRODUCTS.filter((product) => {
-      if (category !== 'all' && (['apparel', 'accessories', 'electronics'] as ProductCategory[]).includes(category as ProductCategory)) {
+      if (
+        category !== 'all' &&
+        (['apparel', 'accessories', 'electronics', 'footwear', 'home-living', 'beauty'] as ProductCategory[]).includes(
+          category as ProductCategory,
+        )
+      ) {
         if (product.category !== category) return false;
       }
       if (inStockOnly && !product.inStock) return false;
@@ -397,7 +531,7 @@ async function startServer(): Promise<void> {
     res.json({ products: filtered, total: PRODUCTS.length });
   });
 
-  app.post('/api/auth/register', (req: Request, res: Response) => {
+  app.post('/api/auth/register', async (req: Request, res: Response) => {
     const body = req.body as Record<string, unknown>;
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
@@ -415,15 +549,22 @@ async function startServer(): Promise<void> {
       res.status(400).json({ error: 'Password must be at least 8 characters long.' });
       return;
     }
-    if (db.users.some((u) => u.email === email)) {
+    if (db.users.some((u) => u.email.toLowerCase() === email)) {
       res.status(409).json({ error: 'An account with this email already exists.' });
       return;
     }
 
+    const supabaseId = await createSupabaseUserViaAdmin({
+      email,
+      password,
+      name,
+    });
+
     const salt = crypto.randomBytes(16).toString('hex');
     const passwordHash = hashPassword(password, salt);
     const newUser: StoredUser = {
-      id: `usr_${crypto.randomUUID()}`,
+      id: supabaseId || `usr_${crypto.randomUUID()}`,
+      supabaseId: supabaseId || undefined,
       name,
       email,
       salt,
@@ -440,10 +581,11 @@ async function startServer(): Promise<void> {
       token,
       user: toPublicUser(newUser),
       cart: [],
+      supabaseSynced: Boolean(supabaseId),
     });
   });
 
-  app.post('/api/auth/login', (req: Request, res: Response) => {
+  app.post('/api/auth/login', async (req: Request, res: Response) => {
     const body = req.body as Record<string, unknown>;
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
     const password = typeof body?.password === 'string' ? body.password : '';
@@ -459,6 +601,21 @@ async function startServer(): Promise<void> {
       return;
     }
 
+    if (!user.supabaseId && SUPABASE_ADMIN_KEY) {
+      const supabaseId = await createSupabaseUserViaAdmin({
+        email: user.email,
+        password,
+        name: user.name,
+        dob: user.dob,
+        phone: user.phone,
+        defaultAddress: user.defaultAddress,
+      });
+      if (supabaseId) {
+        user.supabaseId = supabaseId;
+        saveStore();
+      }
+    }
+
     const token = signSessionToken(user.id);
     const userCart = sanitizeCartItems(db.carts[user.id] || []);
     setSessionCookie(req, res, token);
@@ -467,6 +624,30 @@ async function startServer(): Promise<void> {
       user: toPublicUser(user),
       cart: userCart,
     });
+  });
+
+  app.post('/api/auth/link-supabase', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.authUser!;
+    const body = req.body as Record<string, unknown>;
+    const supabaseAccessToken =
+      typeof body?.supabaseAccessToken === 'string' ? body.supabaseAccessToken.trim() : '';
+
+    if (!supabaseAccessToken) {
+      res.status(400).json({ error: 'Supabase access token is required.' });
+      return;
+    }
+
+    const sbUser = await fetchSupabaseUserByBearer(supabaseAccessToken);
+    if (!sbUser || sbUser.email.toLowerCase() !== user.email.toLowerCase()) {
+      res.status(403).json({ error: 'Supabase token does not match the signed-in account.' });
+      return;
+    }
+
+    if (user.supabaseId !== sbUser.id) {
+      user.supabaseId = sbUser.id;
+      saveStore();
+    }
+    res.json({ user: toPublicUser(user) });
   });
 
   app.post('/api/auth/logout', (req: Request, res: Response) => {
@@ -525,7 +706,7 @@ async function startServer(): Promise<void> {
     res.json({ user: toPublicUser(user) });
   });
 
-  app.put('/api/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  app.put('/api/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     const user = req.authUser!;
     const body = req.body as Record<string, unknown>;
 
@@ -609,6 +790,17 @@ async function startServer(): Promise<void> {
     user.phone = phone;
     user.defaultAddress = defaultAddress;
     saveStore();
+
+    if (SUPABASE_ADMIN_KEY && user.supabaseId) {
+      await updateSupabaseUserMetadataViaAdmin(user.supabaseId, {
+        name: user.name,
+        full_name: user.name,
+        display_name: user.name,
+        dob: user.dob ?? null,
+        phone: user.phone ?? null,
+        defaultAddress: user.defaultAddress ?? null,
+      });
+    }
 
     res.json({ user: toPublicUser(user) });
   });

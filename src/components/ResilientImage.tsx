@@ -19,12 +19,12 @@ export function ResilientImage({
   if (hasError) {
     return (
       <div
-        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#F1F0ED] to-[#E5E4DF] text-[#575652] p-6 text-center ${className}`}
+        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#F3EBDD] to-[#E1F0FA] text-[#63493B] p-6 text-center ${className}`}
         role="img"
         aria-label={alt}
       >
         <Package className="w-7 h-7 mb-2 opacity-60" strokeWidth={1.5} />
-        <span className="text-xs font-medium tracking-wide text-[#575652]">
+        <span className="text-xs font-medium tracking-wide text-[#63493B]">
           {fallbackLabel || alt}
         </span>
       </div>

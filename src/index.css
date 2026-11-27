@@ -16,3 +16,146 @@
     font-family: var(--font-display);
   }
 }
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes panelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes backdropEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawerEnter {
+  from {
+    opacity: 0.4;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes loaderBar {
+  0% {
+    transform: translateX(-100%) scaleX(0.4);
+  }
+  50% {
+    transform: translateX(45%) scaleX(0.75);
+  }
+  100% {
+    transform: translateX(200%) scaleX(0.45);
+  }
+}
+
+@keyframes routeSweep {
+  0% {
+    opacity: 0.9;
+    transform: scaleX(0.15);
+  }
+  70% {
+    opacity: 1;
+    transform: scaleX(0.88);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-panel-enter {
+  animation: panelEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-modal-enter {
+  animation: modalEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-backdrop-enter {
+  animation: backdropEnter 180ms ease-out both;
+}
+
+.animate-drawer-enter {
+  animation: drawerEnter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast-enter {
+  animation: toastEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-loader-bar {
+  transform-origin: left center;
+  animation: loaderBar 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-route-sweep {
+  transform-origin: left center;
+  animation: routeSweep 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-page-enter,
+  .animate-panel-enter,
+  .animate-modal-enter,
+  .animate-backdrop-enter,
+  .animate-drawer-enter,
+  .animate-toast-enter,
+  .animate-loader-bar,
+  .animate-route-sweep {
+    animation: none !important;
+    transition: none !important;
+  }
+}
