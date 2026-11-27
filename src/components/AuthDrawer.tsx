@@ -93,6 +93,7 @@ export function AuthDrawer({
             error?: string;
           };
           if (fallbackRes.ok && fallbackData.token && fallbackData.user) {
+            let linkedSupabaseSession: { session: Session; user: SupabaseUser } | null = null;
             if (!fallbackData.user.supabaseSynced && !/email not confirmed/i.test(signInError.message)) {
               try {
                 const { data: syncData } = await supabase.auth.signUp({
@@ -108,7 +109,7 @@ export function AuthDrawer({
                     },
                   },
                 });
-                if (syncData.session?.access_token) {
+                if (syncData.session?.access_token && syncData.user) {
                   await fetch('/api/auth/link-supabase', {
                     method: 'POST',
                     headers: {
@@ -117,12 +118,17 @@ export function AuthDrawer({
                     },
                     body: JSON.stringify({ supabaseAccessToken: syncData.session.access_token }),
                   });
+                  linkedSupabaseSession = { session: syncData.session, user: syncData.user };
                 }
               } catch {
                 // Keep login working even if Supabase rate limit is still active
               }
             }
-            await onBackendAuthSuccess(fallbackData.token, fallbackData.user);
+            if (linkedSupabaseSession) {
+              await onAuthSuccess(linkedSupabaseSession.session, linkedSupabaseSession.user);
+            } else {
+              await onBackendAuthSuccess(fallbackData.token, fallbackData.user);
+            }
           } else {
             setError(
               /email not confirmed/i.test(signInError.message)

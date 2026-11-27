@@ -9,6 +9,7 @@ import {
 import { AccessoriesPage } from './components/AccessoriesPage.tsx';
 import { AccountPage, type AccountTab } from './components/AccountPage.tsx';
 import { AuthDrawer, type AuthSuccessMeta } from './components/AuthDrawer.tsx';
+import { BeautyPage } from './components/BeautyPage.tsx';
 import { CartDrawer } from './components/CartDrawer.tsx';
 import { ClothesPage } from './components/ClothesPage.tsx';
 import { FootwearPage } from './components/FootwearPage.tsx';
@@ -19,6 +20,18 @@ import { ProductDetailModal } from './components/ProductDetailModal.tsx';
 import { ResilientImage } from './components/ResilientImage.tsx';
 import { TechGoodsPage } from './components/TechGoodsPage.tsx';
 import { HERO_IMAGE, PRODUCTS } from './data/catalog.ts';
+import {
+  addWishlistItem,
+  createOrder as createSupabaseOrder,
+  loadUserStoreData,
+  removeCartItem as removeSupabaseCartItem,
+  removeWishlistItem as removeSupabaseWishlistItem,
+  syncCartItems as syncSupabaseCartItems,
+  syncWishlistItems as syncSupabaseWishlistItems,
+  updateCartItemQuantity as updateSupabaseCartItemQuantity,
+  updateUserProfile as updateSupabaseProfile,
+  upsertCartItem as upsertSupabaseCartItem,
+} from './lib/supabaseStore.ts';
 import { supabase } from './supabaseClient.js';
 import type {
   CartItem,
@@ -69,7 +82,7 @@ const SHOP_BY_CATEGORIES: {
   {
     id: 'beauty',
     title: 'Beauty',
-    subtitle: 'Botanical Serums & Balms',
+    subtitle: 'Serums, Cleansers, SPF & Balms',
     image: '/src/assets/images/product_hydration_serum_1795523788162.jpg',
   },
 ];
@@ -96,13 +109,21 @@ export default function App() {
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
 
   const [view, setView] = useState<
-    'store' | 'clothes' | 'footwear' | 'home-living' | 'accessories' | 'tech-goods' | 'account'
+    | 'store'
+    | 'clothes'
+    | 'footwear'
+    | 'home-living'
+    | 'accessories'
+    | 'tech-goods'
+    | 'beauty'
+    | 'account'
   >(() => {
     if (typeof window === 'undefined') return 'store';
     if (window.location.pathname === '/account') return 'account';
@@ -113,6 +134,7 @@ export default function App() {
     if (window.location.pathname === '/tech-goods' || window.location.pathname === '/electronics') {
       return 'tech-goods';
     }
+    if (window.location.pathname === '/beauty') return 'beauty';
     return 'store';
   });
   const [accountTab, setAccountTab] = useState<AccountTab>('profile');
@@ -138,6 +160,10 @@ export default function App() {
   const categoriesRef = useRef<HTMLElement | null>(null);
   const viewRef = useRef(view);
   viewRef.current = view;
+  const cartItemsRef = useRef(cartItems);
+  cartItemsRef.current = cartItems;
+  const wishlistIdsRef = useRef(wishlistIds);
+  wishlistIdsRef.current = wishlistIds;
   const transitionTimersRef = useRef<{
     swap?: ReturnType<typeof setTimeout>;
     done?: ReturnType<typeof setTimeout>;
@@ -297,6 +323,7 @@ export default function App() {
 
   const applyBackendSession = useCallback(
     async (token: string, backendUser: UserProfile) => {
+      setSupabaseUserId(null);
       setAuthToken(token);
       setUser(backendUser);
       await hydrateAuthenticatedData(token);
@@ -304,9 +331,18 @@ export default function App() {
     [hydrateAuthenticatedData],
   );
 
+  const resolveSupabaseUserId = useCallback(async (): Promise<string | null> => {
+    if (supabaseUserId) return supabaseUserId;
+    const { data } = await supabase.auth.getSession();
+    const uid = data.session?.user?.id ?? null;
+    if (uid) setSupabaseUserId(uid);
+    return uid;
+  }, [supabaseUserId]);
+
   const applySupabaseSession = useCallback(
     async (session: Session | null, sbUser: SupabaseUser | null) => {
       if (!session || !sbUser) {
+        setSupabaseUserId(null);
         setAuthToken(null);
         setUser(null);
         setOrders([]);
@@ -319,15 +355,56 @@ export default function App() {
         sbUser.email?.split('@')[0] ||
         'Shopper';
 
+      setSupabaseUserId(sbUser.id);
       setAuthToken(session.access_token);
-      setUser({
-        id: sbUser.id,
-        name: displayName,
-        email: sbUser.email || '',
-        createdAt: sbUser.created_at || new Date().toISOString(),
-      });
+      setUser((prev) =>
+        prev && prev.id === sbUser.id
+          ? prev
+          : {
+              id: sbUser.id,
+              name: displayName,
+              email: sbUser.email || '',
+              createdAt: sbUser.created_at || new Date().toISOString(),
+            },
+      );
 
-      await hydrateAuthenticatedData(session.access_token);
+      setOrdersLoading(true);
+      try {
+        const guestCart = cartItemsRef.current;
+        const guestWishlist = wishlistIdsRef.current;
+        const storeData = await loadUserStoreData(sbUser);
+
+        const mergedCart = mergeCartItems(storeData.cartItems, guestCart);
+        const mergedWishlist = Array.from(new Set([...storeData.wishlistIds, ...guestWishlist]));
+
+        setUser(storeData.profile);
+        setOrders(storeData.orders);
+        setCartItems(mergedCart);
+        setWishlistIds(mergedWishlist);
+
+        if (guestCart.length > 0) {
+          await syncSupabaseCartItems(sbUser.id, mergedCart);
+        }
+        if (guestWishlist.length > 0) {
+          await syncSupabaseWishlistItems(sbUser.id, mergedWishlist);
+        }
+      } catch (err) {
+        console.warn('Supabase table query failed:', err);
+        const message =
+          err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Unable to load your data from Supabase.';
+        if (/permission denied|does not exist|schema cache/i.test(message)) {
+          setNotification({
+            title: 'Supabase Permissions Needed',
+            message:
+              'Please run the updated SQL in supabase/schema.sql inside your Supabase SQL Editor to grant table permissions.',
+          });
+        }
+        await hydrateAuthenticatedData(session.access_token);
+      } finally {
+        setOrdersLoading(false);
+      }
     },
     [hydrateAuthenticatedData],
   );
@@ -341,6 +418,7 @@ export default function App() {
         | 'home-living'
         | 'accessories'
         | 'tech-goods'
+        | 'beauty'
         | 'account',
       options?: {
         pushPath?: string;
@@ -378,6 +456,10 @@ export default function App() {
         'tech-goods': {
           title: 'Tech Goods',
           label: 'Loading ANC headphones, mechanical keyboards, mice & GaN docks...',
+        },
+        beauty: {
+          title: 'Beauty & Apothecary',
+          label: 'Loading botanical serums, cleansers, mineral SPF & balms...',
         },
         account: {
           title: 'My Account',
@@ -453,10 +535,11 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
+      if (!mounted || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') return;
       if (session) {
         void applySupabaseSession(session, session.user);
       } else if (event === 'SIGNED_OUT') {
+        setSupabaseUserId(null);
         setAuthToken(null);
         setUser(null);
         setOrders([]);
@@ -480,6 +563,8 @@ export default function App() {
         window.location.pathname === '/electronics'
       ) {
         transitionToView('tech-goods');
+      } else if (window.location.pathname === '/beauty') {
+        transitionToView('beauty');
       } else {
         transitionToView('store');
       }
@@ -556,6 +641,13 @@ export default function App() {
     });
   };
 
+  const openBeautyView = () => {
+    transitionToView('beauty', {
+      pushPath: '/beauty',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
+  };
+
   const openAccountView = (tab: AccountTab = 'profile') => {
     if (!user) {
       setAuthMode('login');
@@ -586,27 +678,75 @@ export default function App() {
     }
   };
 
-  const handleAddToCart = (product: Product, variant?: string, quantity = 1) => {
+  const handleAddToCart = async (product: Product, variant?: string, quantity = 1) => {
     if (!product.inStock) return;
     const chosenVariant = variant || product.variants[0];
-    const nextCart = mergeCartItems(cartItems, [
+    const nextCart = mergeCartItems(cartItemsRef.current, [
       { productId: product.id, variant: chosenVariant, quantity },
     ]);
     setCartItems(nextCart);
-    void syncCartToServer(nextCart);
     setJustAddedId(product.id);
     setTimeout(() => {
       setJustAddedId((current) => (current === product.id ? null : current));
     }, 1100);
+
+    const activeSbUserId = await resolveSupabaseUserId();
+    if (activeSbUserId) {
+      const updatedItem = nextCart.find(
+        (item) => item.productId === product.id && item.variant === chosenVariant,
+      );
+      if (updatedItem) {
+        try {
+          await upsertSupabaseCartItem(activeSbUserId, updatedItem);
+        } catch (err) {
+          console.warn('Supabase cart upsert failed:', err);
+          setNotification({
+            title: 'Bag Sync Error',
+            message:
+              err instanceof Error
+                ? err.message
+                : 'Could not save bag item to Supabase. Check table permissions.',
+          });
+        }
+      }
+    } else {
+      await syncCartToServer(nextCart);
+    }
   };
 
-  const handleToggleWishlist = (productId: string) => {
-    const exists = wishlistIds.includes(productId);
+  const handleToggleWishlist = async (productId: string) => {
+    const previousWishlist = wishlistIdsRef.current;
+    const exists = previousWishlist.includes(productId);
     const nextWishlist = exists
-      ? wishlistIds.filter((id) => id !== productId)
-      : [productId, ...wishlistIds];
+      ? previousWishlist.filter((id) => id !== productId)
+      : [productId, ...previousWishlist];
     setWishlistIds(nextWishlist);
-    void syncWishlistToServer(nextWishlist);
+
+    const activeSbUserId = await resolveSupabaseUserId();
+    if (activeSbUserId) {
+      try {
+        if (exists) {
+          await removeSupabaseWishlistItem(activeSbUserId, productId);
+        } else {
+          await addWishlistItem(activeSbUserId, productId);
+        }
+      } catch (err) {
+        console.warn('Supabase wishlist update failed:', err);
+        setWishlistIds(previousWishlist);
+        const msg =
+          err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Could not save wishlist item to Supabase.';
+        setNotification({
+          title: 'Wishlist Not Saved',
+          message: /permission denied/i.test(msg)
+            ? 'Supabase denied access to wishlist_items. Please run the updated supabase/schema.sql (including GRANT statements) in your Supabase SQL Editor.'
+            : msg,
+        });
+      }
+    } else {
+      await syncWishlistToServer(nextWishlist);
+    }
   };
 
   const handleUpdateProfile = async (updates: {
@@ -615,9 +755,31 @@ export default function App() {
     phone: string;
     defaultAddress: ShippingAddress | null;
   }) => {
-    if (!authToken) {
+    const activeSbUserId = await resolveSupabaseUserId();
+    if (!authToken && !activeSbUserId) {
       throw new Error('Please sign in to update your profile.');
     }
+
+    if (activeSbUserId) {
+      const savedProfile = await updateSupabaseProfile(activeSbUserId, updates);
+      setUser(savedProfile);
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            name: savedProfile.name,
+            full_name: savedProfile.name,
+            display_name: savedProfile.name,
+            dob: savedProfile.dob ?? null,
+            phone: savedProfile.phone ?? null,
+            defaultAddress: savedProfile.defaultAddress ?? null,
+          },
+        });
+      } catch {
+        // Profile row is already saved in Supabase `profiles` table
+      }
+      return;
+    }
+
     const response = await fetch('/api/profile', {
       method: 'PUT',
       headers: {
@@ -631,45 +793,76 @@ export default function App() {
       throw new Error(data.error || 'Could not save account details.');
     }
     setUser(data.user);
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session) {
-        await supabase.auth.updateUser({
-          data: {
-            name: data.user.name,
-            full_name: data.user.name,
-            display_name: data.user.name,
-            dob: data.user.dob ?? null,
-            phone: data.user.phone ?? null,
-            defaultAddress: data.user.defaultAddress ?? null,
-          },
-        });
-      }
-    } catch {
-      // Backend profile is saved even if Supabase metadata update fails
-    }
+    setNotification({
+      title: 'Local Session Only',
+      message:
+        'Saved locally because no active Supabase Auth session was found. Please Sign Out and Sign In again to save directly to Supabase.',
+    });
   };
 
-  const handleUpdateQuantity = (productId: string, variant: string, quantity: number) => {
+  const handleUpdateQuantity = async (productId: string, variant: string, quantity: number) => {
+    const previousCart = cartItemsRef.current;
     const nextCart =
       quantity <= 0
-        ? cartItems.filter((item) => !(item.productId === productId && item.variant === variant))
-        : cartItems.map((item) =>
+        ? previousCart.filter(
+            (item) => !(item.productId === productId && item.variant === variant),
+          )
+        : previousCart.map((item) =>
             item.productId === productId && item.variant === variant
               ? { ...item, quantity: Math.min(20, quantity) }
               : item,
           );
     setCartItems(nextCart);
-    void syncCartToServer(nextCart);
+    const activeSbUserId = await resolveSupabaseUserId();
+    if (activeSbUserId) {
+      try {
+        await updateSupabaseCartItemQuantity(activeSbUserId, productId, variant, quantity);
+      } catch (err) {
+        console.warn('Supabase cart quantity update failed:', err);
+        setCartItems(previousCart);
+        const msg =
+          err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Could not update bag item in Supabase.';
+        setNotification({
+          title: 'Bag Sync Error',
+          message: /permission denied/i.test(msg)
+            ? 'Supabase denied access to cart_items. Please run supabase/schema.sql in your Supabase SQL Editor.'
+            : msg,
+        });
+      }
+    } else {
+      await syncCartToServer(nextCart);
+    }
   };
 
-  const handleRemoveItem = (productId: string, variant: string) => {
-    const nextCart = cartItems.filter(
+  const handleRemoveItem = async (productId: string, variant: string) => {
+    const previousCart = cartItemsRef.current;
+    const nextCart = previousCart.filter(
       (item) => !(item.productId === productId && item.variant === variant),
     );
     setCartItems(nextCart);
-    void syncCartToServer(nextCart);
+    const activeSbUserId = await resolveSupabaseUserId();
+    if (activeSbUserId) {
+      try {
+        await removeSupabaseCartItem(activeSbUserId, productId, variant);
+      } catch (err) {
+        console.warn('Supabase cart delete failed:', err);
+        setCartItems(previousCart);
+        const msg =
+          err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Could not remove bag item from Supabase.';
+        setNotification({
+          title: 'Bag Sync Error',
+          message: /permission denied/i.test(msg)
+            ? 'Supabase denied access to cart_items. Please run supabase/schema.sql in your Supabase SQL Editor.'
+            : msg,
+        });
+      }
+    } else {
+      await syncCartToServer(nextCart);
+    }
   };
 
   const handleAuthSuccess = async (
@@ -678,22 +871,15 @@ export default function App() {
     meta?: AuthSuccessMeta,
   ) => {
     await applySupabaseSession(session, supabaseUser);
-    if (meta?.isNewAccount && meta.name && session?.access_token) {
+    if (meta?.isNewAccount && meta.name && supabaseUser && session) {
       try {
-        const res = await fetch('/api/profile', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ name: meta.name }),
+        const updatedProfile = await updateSupabaseProfile(supabaseUser.id, {
+          name: meta.name,
+          dob: '',
+          phone: '',
+          defaultAddress: null,
         });
-        if (res.ok) {
-          const profileData = (await res.json()) as { user?: UserProfile };
-          if (profileData.user) {
-            setUser(profileData.user);
-          }
-        }
+        setUser(updatedProfile);
       } catch {
         // Non-blocking profile name sync
       }
@@ -736,6 +922,7 @@ export default function App() {
     } catch {
       // Clear local client state even if logout request fails
     }
+    setSupabaseUserId(null);
     setAuthToken(null);
     setUser(null);
     setOrders([]);
@@ -748,9 +935,23 @@ export default function App() {
     shippingAddress: ShippingAddress,
     paymentMethod: PaymentMethod,
   ): Promise<Order> => {
-    if (!authToken) {
+    const activeSbUserId = await resolveSupabaseUserId();
+    if (!authToken && !activeSbUserId) {
       throw new Error('Please sign in before placing your order.');
     }
+
+    if (activeSbUserId) {
+      const order = await createSupabaseOrder(
+        activeSbUserId,
+        cartItemsRef.current,
+        shippingAddress,
+        paymentMethod,
+      );
+      setCartItems([]);
+      setOrders((prev) => [order, ...prev]);
+      return order;
+    }
+
     const response = await fetch('/api/orders', {
       method: 'POST',
       headers: {
@@ -907,9 +1108,9 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => handleCategoryNavClick('beauty')}
+              onClick={openBeautyView}
               className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                view === 'store' && selectedCategory === 'beauty'
+                view === 'beauty'
                   ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
@@ -1017,6 +1218,20 @@ export default function App() {
           />
         ) : view === 'tech-goods' ? (
           <TechGoodsPage
+            products={PRODUCTS}
+            justAddedId={justAddedId}
+            wishlistIds={wishlistIds}
+            onBackToHome={() => {
+              setSelectedCategory(null);
+              openStoreView();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onQuickAdd={(product) => handleAddToCart(product)}
+            onToggleWishlist={handleToggleWishlist}
+          />
+        ) : view === 'beauty' ? (
+          <BeautyPage
             products={PRODUCTS}
             justAddedId={justAddedId}
             wishlistIds={wishlistIds}
@@ -1160,6 +1375,11 @@ export default function App() {
                     if (cat.id === 'electronics') {
                       setSelectedCategory(null);
                       openTechGoodsView();
+                      return;
+                    }
+                    if (cat.id === 'beauty') {
+                      setSelectedCategory(null);
+                      openBeautyView();
                       return;
                     }
                     setSelectedCategory((prev) => (prev === cat.id ? null : cat.id));
@@ -1363,7 +1583,7 @@ export default function App() {
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleCategoryNavClick('beauty')} className="hover:text-[#FFFDF9] transition-colors">
+                  <button type="button" onClick={openBeautyView} className="hover:text-[#FFFDF9] transition-colors">
                     Beauty
                   </button>
                 </li>

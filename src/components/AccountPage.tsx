@@ -159,7 +159,13 @@ export function AccountPage({
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3500);
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Unable to save profile details.');
+      const msg =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Unable to save profile details.';
+      setProfileError(msg);
     } finally {
       setSavingProfile(false);
     }

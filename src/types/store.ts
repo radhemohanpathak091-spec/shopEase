@@ -31,6 +31,11 @@ export type TechGoodsSubCategory =
   | 'desk'
   | 'power'
   | 'workspace';
+export type BeautySubCategory =
+  | 'skincare'
+  | 'cleansers'
+  | 'body-care'
+  | 'lip-hair';
 
 export interface ProductSpec {
   label: string;
@@ -48,7 +53,8 @@ export interface Product {
     | FootwearSubCategory
     | HomeLivingSubCategory
     | AccessoriesSubCategory
-    | TechGoodsSubCategory;
+    | TechGoodsSubCategory
+    | BeautySubCategory;
   categoryLabel: string;
   price: number;
   rating: number;
