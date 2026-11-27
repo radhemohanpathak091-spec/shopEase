@@ -6,6 +6,7 @@ import {
   ShoppingBag,
   X,
 } from 'lucide-react';
+import { AccessoriesPage } from './components/AccessoriesPage.tsx';
 import { AccountPage, type AccountTab } from './components/AccountPage.tsx';
 import { AuthDrawer, type AuthSuccessMeta } from './components/AuthDrawer.tsx';
 import { CartDrawer } from './components/CartDrawer.tsx';
@@ -16,6 +17,7 @@ import { LoadingPage } from './components/LoadingPage.tsx';
 import { ProductCard } from './components/ProductCard.tsx';
 import { ProductDetailModal } from './components/ProductDetailModal.tsx';
 import { ResilientImage } from './components/ResilientImage.tsx';
+import { TechGoodsPage } from './components/TechGoodsPage.tsx';
 import { HERO_IMAGE, PRODUCTS } from './data/catalog.ts';
 import { supabase } from './supabaseClient.js';
 import type {
@@ -36,8 +38,8 @@ const SHOP_BY_CATEGORIES: {
 }[] = [
   {
     id: 'electronics',
-    title: 'Electronics',
-    subtitle: 'Audio, Keyboards & Docks',
+    title: 'Tech Goods',
+    subtitle: 'Audio, Keyboards, Mice & Docks',
     image: '/src/assets/images/product_anc_headphones_1795513367126.jpg',
   },
   {
@@ -61,7 +63,7 @@ const SHOP_BY_CATEGORIES: {
   {
     id: 'accessories',
     title: 'Accessories',
-    subtitle: 'Bags, Watches & Eyewear',
+    subtitle: 'Bags, Watches, Eyewear & Leather',
     image: '/src/assets/images/product_leather_tote_1795513368076.jpg',
   },
   {
@@ -99,12 +101,18 @@ export default function App() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
 
-  const [view, setView] = useState<'store' | 'clothes' | 'footwear' | 'home-living' | 'account'>(() => {
+  const [view, setView] = useState<
+    'store' | 'clothes' | 'footwear' | 'home-living' | 'accessories' | 'tech-goods' | 'account'
+  >(() => {
     if (typeof window === 'undefined') return 'store';
     if (window.location.pathname === '/account') return 'account';
     if (window.location.pathname === '/clothes') return 'clothes';
     if (window.location.pathname === '/footwear') return 'footwear';
     if (window.location.pathname === '/home-living') return 'home-living';
+    if (window.location.pathname === '/accessories') return 'accessories';
+    if (window.location.pathname === '/tech-goods' || window.location.pathname === '/electronics') {
+      return 'tech-goods';
+    }
     return 'store';
   });
   const [accountTab, setAccountTab] = useState<AccountTab>('profile');
@@ -326,7 +334,14 @@ export default function App() {
 
   const transitionToView = useCallback(
     (
-      targetView: 'store' | 'clothes' | 'footwear' | 'home-living' | 'account',
+      targetView:
+        | 'store'
+        | 'clothes'
+        | 'footwear'
+        | 'home-living'
+        | 'accessories'
+        | 'tech-goods'
+        | 'account',
       options?: {
         pushPath?: string;
         afterSwap?: () => void;
@@ -355,6 +370,14 @@ export default function App() {
         'home-living': {
           title: 'Home & Living',
           label: 'Loading stoneware ceramics, organic textiles, lamps & candles...',
+        },
+        accessories: {
+          title: 'Accessories Collection',
+          label: 'Loading leather bags, titanium watches, eyewear & wallets...',
+        },
+        'tech-goods': {
+          title: 'Tech Goods',
+          label: 'Loading ANC headphones, mechanical keyboards, mice & GaN docks...',
         },
         account: {
           title: 'My Account',
@@ -450,6 +473,13 @@ export default function App() {
         transitionToView('footwear');
       } else if (window.location.pathname === '/home-living') {
         transitionToView('home-living');
+      } else if (window.location.pathname === '/accessories') {
+        transitionToView('accessories');
+      } else if (
+        window.location.pathname === '/tech-goods' ||
+        window.location.pathname === '/electronics'
+      ) {
+        transitionToView('tech-goods');
       } else {
         transitionToView('store');
       }
@@ -508,6 +538,20 @@ export default function App() {
   const openHomeLivingView = () => {
     transitionToView('home-living', {
       pushPath: '/home-living',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
+  };
+
+  const openAccessoriesView = () => {
+    transitionToView('accessories', {
+      pushPath: '/accessories',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
+  };
+
+  const openTechGoodsView = () => {
+    transitionToView('tech-goods', {
+      pushPath: '/tech-goods',
       afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
     });
   };
@@ -841,9 +885,9 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => handleCategoryNavClick('accessories')}
+              onClick={openAccessoriesView}
               className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                view === 'store' && selectedCategory === 'accessories'
+                view === 'accessories'
                   ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
@@ -852,9 +896,9 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => handleCategoryNavClick('electronics')}
+              onClick={openTechGoodsView}
               className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                view === 'store' && selectedCategory === 'electronics'
+                view === 'tech-goods'
                   ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
@@ -945,6 +989,34 @@ export default function App() {
           />
         ) : view === 'home-living' ? (
           <HomeLivingPage
+            products={PRODUCTS}
+            justAddedId={justAddedId}
+            wishlistIds={wishlistIds}
+            onBackToHome={() => {
+              setSelectedCategory(null);
+              openStoreView();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onQuickAdd={(product) => handleAddToCart(product)}
+            onToggleWishlist={handleToggleWishlist}
+          />
+        ) : view === 'accessories' ? (
+          <AccessoriesPage
+            products={PRODUCTS}
+            justAddedId={justAddedId}
+            wishlistIds={wishlistIds}
+            onBackToHome={() => {
+              setSelectedCategory(null);
+              openStoreView();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onQuickAdd={(product) => handleAddToCart(product)}
+            onToggleWishlist={handleToggleWishlist}
+          />
+        ) : view === 'tech-goods' ? (
+          <TechGoodsPage
             products={PRODUCTS}
             justAddedId={justAddedId}
             wishlistIds={wishlistIds}
@@ -1078,6 +1150,16 @@ export default function App() {
                     if (cat.id === 'home-living') {
                       setSelectedCategory(null);
                       openHomeLivingView();
+                      return;
+                    }
+                    if (cat.id === 'accessories') {
+                      setSelectedCategory(null);
+                      openAccessoriesView();
+                      return;
+                    }
+                    if (cat.id === 'electronics') {
+                      setSelectedCategory(null);
+                      openTechGoodsView();
                       return;
                     }
                     setSelectedCategory((prev) => (prev === cat.id ? null : cat.id));
@@ -1261,8 +1343,8 @@ export default function App() {
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleCategoryNavClick('electronics')} className="hover:text-[#FFFDF9] transition-colors">
-                    Electronics
+                  <button type="button" onClick={openTechGoodsView} className="hover:text-[#FFFDF9] transition-colors">
+                    Tech Goods & Electronics
                   </button>
                 </li>
                 <li>
@@ -1276,7 +1358,7 @@ export default function App() {
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleCategoryNavClick('accessories')} className="hover:text-[#FFFDF9] transition-colors">
+                  <button type="button" onClick={openAccessoriesView} className="hover:text-[#FFFDF9] transition-colors">
                     Accessories
                   </button>
                 </li>

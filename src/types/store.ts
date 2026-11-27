@@ -21,6 +21,16 @@ export type HomeLivingSubCategory =
   | 'textiles'
   | 'decor'
   | 'fragrance';
+export type AccessoriesSubCategory =
+  | 'carry'
+  | 'horology'
+  | 'eyewear'
+  | 'leather-goods';
+export type TechGoodsSubCategory =
+  | 'audio'
+  | 'desk'
+  | 'power'
+  | 'workspace';
 
 export interface ProductSpec {
   label: string;
@@ -33,7 +43,12 @@ export interface Product {
   name: string;
   brand: string;
   category: ProductCategory;
-  subCategory?: ClothesSubCategory | FootwearSubCategory | HomeLivingSubCategory;
+  subCategory?:
+    | ClothesSubCategory
+    | FootwearSubCategory
+    | HomeLivingSubCategory
+    | AccessoriesSubCategory
+    | TechGoodsSubCategory;
   categoryLabel: string;
   price: number;
   rating: number;
