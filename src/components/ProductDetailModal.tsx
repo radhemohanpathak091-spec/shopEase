@@ -51,52 +51,53 @@ export function ProductDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/45 backdrop-blur-[2px] animate-backdrop-enter"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[2px] animate-backdrop-enter"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="pdp-title"
     >
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl shadow-xl grid grid-cols-1 md:grid-cols-2 animate-modal-enter"
+        className="relative w-full max-w-4xl max-h-[90dvh] bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl shadow-xl overflow-hidden animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close product details"
-          className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-lg bg-[#FFFDF9]/95 border border-[#E4D8C6] text-[#2C1A12] hover:bg-[#F3EBDD] transition-colors focus-visible:outline-2 focus-visible:outline-[#5CA4D6]"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-10 h-10 flex items-center justify-center rounded-lg bg-[#FFFDF9]/95 border border-[#E4D8C6] text-[#2C1A12] hover:bg-[#F3EBDD] transition-colors shadow-xs focus-visible:outline-2 focus-visible:outline-[#5CA4D6]"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="bg-[#F3EBDD] flex items-center justify-center p-6 md:p-8 min-h-[280px]">
-          <div className="w-full aspect-[4/3] rounded-xl overflow-hidden bg-[#FFFDF9]">
-            <ResilientImage
-              src={product.image}
-              alt={`${product.name} studio detail`}
-              fallbackLabel={product.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-
-        <div className="p-6 sm:p-8 flex flex-col gap-5">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-[#7C6354]">
-              <span>{product.categoryLabel}</span>
-              <span aria-hidden="true">·</span>
-              <span>{product.brand}</span>
-              <span aria-hidden="true">·</span>
-              <span className="font-mono">{product.sku}</span>
+        <div className="max-h-[90dvh] overflow-y-auto grid grid-cols-1 md:grid-cols-2">
+          <div className="bg-[#F3EBDD] flex items-center justify-center p-4 sm:p-6 md:p-8 min-h-[220px] sm:min-h-[280px]">
+            <div className="w-full aspect-[4/3] rounded-xl overflow-hidden bg-[#FFFDF9]">
+              <ResilientImage
+                src={product.image}
+                alt={`${product.name} studio detail`}
+                fallbackLabel={product.name}
+                className="w-full h-full object-cover"
+              />
             </div>
-            <h2
-              id="pdp-title"
-              className="mt-2 font-display text-2xl font-semibold text-[#2C1A12] tracking-tight"
-            >
-              {product.name}
-            </h2>
-            <div className="mt-2 flex items-center justify-between gap-4">
+          </div>
+
+          <div className="p-5 sm:p-8 flex flex-col gap-5">
+            <div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#7C6354] pr-8 md:pr-10">
+                <span>{product.categoryLabel}</span>
+                <span aria-hidden="true">·</span>
+                <span>{product.brand}</span>
+                <span aria-hidden="true">·</span>
+                <span className="font-mono">{product.sku}</span>
+              </div>
+              <h2
+                id="pdp-title"
+                className="mt-2 font-display text-xl sm:text-2xl font-semibold text-[#2C1A12] tracking-tight pr-6 md:pr-8"
+              >
+                {product.name}
+              </h2>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
               <span className="font-mono text-xl font-medium text-[#2C1A12] tabular-nums">
                 {formatINR(product.price)}
               </span>
@@ -139,14 +140,14 @@ export function ProductDetailModal({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3">
               <div className="inline-flex items-center border border-[#D7C6B1] rounded-lg bg-[#FFFDF9]">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={!product.inStock || quantity <= 1}
                   aria-label="Decrease quantity"
-                  className="w-10 h-10 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD] disabled:opacity-40 rounded-l-lg"
+                  className="w-11 h-11 sm:w-10 sm:h-10 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD] disabled:opacity-40 rounded-l-lg"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
@@ -158,7 +159,7 @@ export function ProductDetailModal({
                   onClick={() => setQuantity((q) => Math.min(20, q + 1))}
                   disabled={!product.inStock || quantity >= 20}
                   aria-label="Increase quantity"
-                  className="w-10 h-10 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD] disabled:opacity-40 rounded-r-lg"
+                  className="w-11 h-11 sm:w-10 sm:h-10 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD] disabled:opacity-40 rounded-r-lg"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -168,7 +169,7 @@ export function ProductDetailModal({
                 type="button"
                 disabled={!product.inStock}
                 onClick={handleAdd}
-                className={`flex-1 min-h-[42px] px-5 py-2.5 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
+                className={`w-full sm:w-auto sm:flex-1 order-last sm:order-none min-h-[44px] sm:min-h-[42px] px-5 py-2.5 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
                   !product.inStock
                     ? 'bg-[#F3EBDD] text-[#9A8476] cursor-not-allowed'
                     : addedFeedback
@@ -193,7 +194,7 @@ export function ProductDetailModal({
                 onClick={() => onToggleWishlist(product.id)}
                 aria-label={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
                 aria-pressed={isWishlisted}
-                className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
+                className={`ml-auto sm:ml-0 w-11 h-11 flex items-center justify-center rounded-lg border transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
                   isWishlisted
                     ? 'border-[#FECACA] bg-[#FEF2F2] text-[#DC2626]'
                     : 'border-[#D7C6B1] bg-[#FFFDF9] text-[#63493B] hover:bg-[#E1F0FA] hover:border-[#A8D4F0] hover:text-[#1E4E6E]'
@@ -216,6 +217,7 @@ export function ProductDetailModal({
                 </div>
               ))}
             </dl>
+          </div>
           </div>
         </div>
       </div>

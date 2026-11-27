@@ -225,13 +225,13 @@ export function AuthDrawer({
       aria-labelledby="auth-drawer-title"
     >
       <aside
-        className="w-full max-w-md h-full bg-[#FFFDF9] border-l border-[#E4D8C6] flex flex-col shadow-2xl animate-drawer-enter"
+        className="w-full max-w-md h-dvh bg-[#FFFDF9] border-l border-[#E4D8C6] flex flex-col shadow-2xl animate-drawer-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-5 border-b border-[#EFE5D6] flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <User className="w-4 h-4 text-[#6B3F26]" />
-            <h2 id="auth-drawer-title" className="font-display text-lg font-semibold text-[#2C1A12]">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-[#EFE5D6] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <User className="w-4 h-4 text-[#6B3F26] shrink-0" />
+            <h2 id="auth-drawer-title" className="font-display text-lg font-semibold text-[#2C1A12] truncate">
               {user ? 'Your Account' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </h2>
           </div>
@@ -239,13 +239,13 @@ export function AuthDrawer({
             type="button"
             onClick={onClose}
             aria-label="Close account drawer"
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#63493B] hover:bg-[#F3EBDD] hover:text-[#2C1A12] transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#63493B] hover:bg-[#F3EBDD] hover:text-[#2C1A12] transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {!user ? (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-1 p-1 bg-[#F3EBDD] rounded-lg">
@@ -301,7 +301,7 @@ export function AuthDrawer({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Jordan Mercer"
-                      className="w-full h-11 px-3.5 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
+                      className="w-full h-11 px-3.5 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
                     />
                   </div>
                 )}
@@ -318,7 +318,7 @@ export function AuthDrawer({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full h-11 px-3.5 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
+                    className="w-full h-11 px-3.5 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
                   />
                 </div>
 
@@ -337,13 +337,13 @@ export function AuthDrawer({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Minimum 8 characters"
-                      className="w-full h-11 pl-3.5 pr-11 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
+                      className="w-full h-11 pl-3.5 pr-12 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#63493B] hover:text-[#2C1A12] rounded"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-[#63493B] hover:text-[#2C1A12] rounded"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -375,8 +375,8 @@ export function AuthDrawer({
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E4D8C6] flex items-center justify-between gap-4">
-                <div className="min-w-0">
+              <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E4D8C6] flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+                <div className="min-w-0 flex-1">
                   <p className="font-display text-base font-semibold text-[#2C1A12] truncate">
                     {user.name}
                   </p>

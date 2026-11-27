@@ -137,20 +137,20 @@ export function ClothesPage({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#EFE5D6] text-xs">
+          <div className="grid grid-cols-3 sm:flex sm:items-center gap-3 sm:gap-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-[#EFE5D6] text-xs w-full lg:w-auto">
             <div>
               <p className="text-[#7C6354]">Pieces</p>
               <p className="font-mono text-lg font-semibold text-[#2C1A12] tabular-nums mt-0.5">
                 {clothesProducts.length}
               </p>
             </div>
-            <div className="border-l border-[#EFE5D6] pl-6">
+            <div className="border-l border-[#EFE5D6] pl-3 sm:pl-6">
               <p className="text-[#7C6354]">Bottoms</p>
               <p className="font-mono text-lg font-semibold text-[#2C1A12] tabular-nums mt-0.5">
                 {bottomsProducts.length}
               </p>
             </div>
-            <div className="border-l border-[#EFE5D6] pl-6">
+            <div className="border-l border-[#EFE5D6] pl-3 sm:pl-6">
               <p className="text-[#7C6354]">Shirt Styles</p>
               <p className="font-mono text-lg font-semibold text-[#2C1A12] tabular-nums mt-0.5">
                 {shirtProducts.length}
@@ -163,7 +163,7 @@ export function ClothesPage({
       {/* Filter & Search Toolbar */}
       <section aria-label="Clothes filters" className="bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl p-4 space-y-4">
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="w-4 h-4 text-[#7C6354] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="search"
@@ -171,14 +171,14 @@ export function ClothesPage({
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search jeans, Korean pants, linen pants, Oxford, Cuban, flannel..."
               aria-label="Search clothes"
-              className="w-full h-11 pl-10 pr-10 text-sm bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:bg-[#FFFDF9] focus:border-[#6B3F26]"
+              className="w-full h-11 pl-10 pr-10 text-base sm:text-sm bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:bg-[#FFFDF9] focus:border-[#6B3F26]"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear clothes search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#7C6354] hover:text-[#2C1A12] rounded"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-[#7C6354] hover:text-[#2C1A12] rounded"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -188,7 +188,7 @@ export function ClothesPage({
           <div
             role="tablist"
             aria-label="Clothes sub-categories"
-            className="flex items-center gap-1 p-1 bg-[#F3EBDD] rounded-lg overflow-x-auto"
+            className="flex items-center gap-1 p-1 bg-[#F3EBDD] rounded-lg overflow-x-auto no-scrollbar max-w-full"
           >
             {SUBCATEGORY_TABS.map((tab) => {
               const active = subCategory === tab.id;
@@ -199,7 +199,7 @@ export function ClothesPage({
                   role="tab"
                   aria-selected={active}
                   onClick={() => setSubCategory(tab.id)}
-                  className={`min-h-[36px] px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`min-h-[38px] sm:min-h-[36px] px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
                     active
                       ? 'bg-[#FFFDF9] text-[#2C1A12] shadow-xs'
                       : 'text-[#63493B] hover:text-[#2C1A12]'
@@ -212,8 +212,8 @@ export function ClothesPage({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#EFE5D6]">
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3 pt-3 border-t border-[#EFE5D6]">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#63493B] mr-1">
               <SlidersHorizontal className="w-3.5 h-3.5" />
               Filters:
@@ -223,7 +223,7 @@ export function ClothesPage({
               aria-label="Filter clothes by price"
               value={priceRange}
               onChange={(e) => setPriceRange(e.target.value as ClothesPriceFilter)}
-              className="h-10 px-3 text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+              className="h-11 sm:h-10 px-3 text-base sm:text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26] flex-1 sm:flex-none min-w-[140px]"
             >
               <option value="all">All Prices (₹599 – ₹1,499)</option>
               <option value="under-900">Under ₹900</option>
@@ -235,7 +235,7 @@ export function ClothesPage({
               type="button"
               aria-pressed={inStockOnly}
               onClick={() => setInStockOnly((prev) => !prev)}
-              className={`min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
+              className={`min-h-[44px] sm:min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
                 inStockOnly
                   ? 'bg-[#E1F0FA] text-[#1E4E6E] border-[#A8D4F0]'
                   : 'bg-[#FBF6EE] text-[#2C1A12] border-[#E4D8C6] hover:border-[#6B3F26]'
@@ -248,7 +248,7 @@ export function ClothesPage({
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="inline-flex items-center gap-1.5 min-h-[40px] px-3 text-xs font-medium text-[#2D6F99] hover:text-[#1E4E6E] whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[40px] px-3 text-xs font-medium text-[#2D6F99] hover:text-[#1E4E6E] whitespace-nowrap shrink-0"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset Filters
@@ -256,7 +256,7 @@ export function ClothesPage({
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
             <span className="font-mono text-xs text-[#7C6354] tabular-nums">
               {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
             </span>
@@ -264,7 +264,7 @@ export function ClothesPage({
               aria-label="Sort clothes"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as ClothesSortOption)}
-              className="h-10 px-3 text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+              className="h-11 sm:h-10 px-3 text-base sm:text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
             >
               <option value="featured">Featured</option>
               <option value="price-asc">Price: Low to High</option>

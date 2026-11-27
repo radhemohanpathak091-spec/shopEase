@@ -3,7 +3,10 @@ import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import {
   ArrowRight,
   CheckCircle2,
+  ChevronRight,
+  Menu,
   ShoppingBag,
+  User,
   X,
 } from 'lucide-react';
 import { AccessoriesPage } from './components/AccessoriesPage.tsx';
@@ -151,6 +154,7 @@ export default function App() {
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [notification, setNotification] = useState<{
     title: string;
@@ -197,6 +201,36 @@ export default function App() {
       if (timers.done) clearTimeout(timers.done);
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    const hasOpenOverlay =
+      isMobileMenuOpen || isCartOpen || isAuthOpen || Boolean(selectedProduct);
+    if (!hasOpenOverlay) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileMenuOpen, isCartOpen, isAuthOpen, selectedProduct]);
 
   const syncCartToServer = useCallback(
     async (items: CartItem[], tokenOverride?: string | null) => {
@@ -431,6 +465,7 @@ export default function App() {
         afterSwap?: () => void;
       },
     ) => {
+      setIsMobileMenuOpen(false);
       if (transitionTimersRef.current.swap) clearTimeout(transitionTimersRef.current.swap);
       if (transitionTimersRef.current.done) clearTimeout(transitionTimersRef.current.done);
 
@@ -991,14 +1026,14 @@ export default function App() {
   const firstName = user ? user.name.split(' ')[0] : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FBF6EE] text-[#2C1A12]">
+    <div className="min-h-dvh flex flex-col bg-[#FBF6EE] text-[#2C1A12]">
       {view === 'store' && showAnnouncement && (
         <div
           role="region"
           aria-label="Store announcement"
-          className="bg-[#3B2316] text-[#FFFDF9] border-b border-[#4E2C19] h-9 px-4 flex items-center justify-between gap-3 text-xs"
+          className="bg-[#3B2316] text-[#FFFDF9] border-b border-[#4E2C19] min-h-[36px] py-1 px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-3 text-xs"
         >
-          <span className="hidden sm:inline-block w-7 shrink-0" aria-hidden="true" />
+          <span className="hidden sm:inline-block w-8 shrink-0" aria-hidden="true" />
           <div className="flex items-center justify-center gap-2 sm:gap-3 min-w-0 truncate">
             <span className="truncate">
               Discover new arrivals. Exclusive styles, just for you
@@ -1018,14 +1053,14 @@ export default function App() {
             type="button"
             onClick={() => setShowAnnouncement(false)}
             aria-label="Dismiss announcement"
-            className="w-7 h-7 flex items-center justify-center rounded text-[#E4D8C6] hover:text-[#FFFDF9] hover:bg-[#4E2C19] transition-colors shrink-0"
+            className="w-8 h-8 flex items-center justify-center rounded text-[#E4D8C6] hover:text-[#FFFDF9] hover:bg-[#4E2C19] transition-colors shrink-0"
           >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* Top Bar Contract: [Brand title, one line] — [4-5 nav links] — [1 primary action] */}
+      {/* Top Bar Contract: [Menu + Brand title, one line] — [nav links on lg+] — [1 primary action] */}
       <header className="sticky top-0 z-40 bg-[#FBF6EE]/95 backdrop-blur-sm border-b border-[#E4D8C6]">
         {routeSweepKey > 0 && (
           <div
@@ -1034,22 +1069,36 @@ export default function App() {
             className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#6B3F26] via-[#2D6F99] to-[#68B0DF] animate-route-sweep pointer-events-none"
           />
         )}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
-          <a
-            href="/"
-            onClick={(e) => {
-              e.preventDefault();
-              openStoreView();
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="font-display text-base sm:text-lg font-bold tracking-tight text-[#2C1A12] whitespace-nowrap shrink-0"
-          >
-            shopEase
-          </a>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3 sm:gap-6 lg:gap-8">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-nav-drawer"
+              aria-label="Open navigation menu"
+              className="lg:hidden inline-flex items-center justify-center w-11 h-11 -ml-1.5 rounded-lg text-[#2C1A12] hover:bg-[#EFE5D6] transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6]"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsMobileMenuOpen(false);
+                openStoreView();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="font-display text-base sm:text-lg font-bold tracking-tight text-[#2C1A12] whitespace-nowrap shrink-0"
+            >
+              shopEase
+            </a>
+          </div>
 
           <nav
             aria-label="Primary navigation"
-            className="hidden md:flex items-center gap-4 lg:gap-5 text-xs lg:text-sm font-medium text-[#63493B] min-w-0 overflow-x-auto [scrollbar-width:none]"
+            className="hidden lg:flex items-center gap-4 xl:gap-5 text-xs xl:text-sm font-medium text-[#63493B] min-w-0 overflow-x-auto no-scrollbar"
           >
             <button
               type="button"
@@ -1145,11 +1194,11 @@ export default function App() {
             </button>
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 text-xs font-medium text-[#FFFDF9] bg-[#6B3F26] hover:bg-[#4E2C19] rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6]"
+              className="inline-flex items-center gap-2 min-h-[42px] sm:min-h-[40px] px-3.5 sm:px-4 py-2 text-xs font-medium text-[#FFFDF9] bg-[#6B3F26] hover:bg-[#4E2C19] rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6]"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               <span className="font-mono tabular-nums">Bag ({totalBagCount})</span>
@@ -1157,6 +1206,109 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex justify-start">
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 bg-[#2C1A12]/40 backdrop-blur-[2px]"
+          />
+          <aside
+            id="mobile-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Store navigation"
+            className="relative z-10 w-[85vw] max-w-xs h-dvh bg-[#FFFDF9] border-r border-[#E4D8C6] shadow-2xl flex flex-col animate-panel-enter"
+          >
+            <div className="px-5 py-4 border-b border-[#EFE5D6] flex items-center justify-between gap-3">
+              <div>
+                <p className="font-display text-base font-bold tracking-tight text-[#2C1A12]">
+                  shopEase
+                </p>
+                <p className="text-[11px] text-[#7C6354]">Browse Departments</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                aria-label="Close menu"
+                className="w-11 h-11 -mr-1.5 rounded-lg flex items-center justify-center text-[#63493B] hover:bg-[#F3EBDD] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <nav aria-label="Mobile navigation" className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
+              {[
+                {
+                  label: 'Home',
+                  active: view === 'store' && selectedCategory === null,
+                  onClick: () => {
+                    setSelectedCategory(null);
+                    openStoreView();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  },
+                },
+                { label: 'Clothes', active: view === 'clothes', onClick: openClothesView },
+                { label: 'Footwear', active: view === 'footwear', onClick: openFootwearView },
+                { label: 'Home & Living', active: view === 'home-living', onClick: openHomeLivingView },
+                { label: 'Accessories', active: view === 'accessories', onClick: openAccessoriesView },
+                { label: 'Tech Goods', active: view === 'tech-goods', onClick: openTechGoodsView },
+                { label: 'Beauty', active: view === 'beauty', onClick: openBeautyView },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    item.onClick();
+                  }}
+                  className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-xl flex items-center justify-between text-sm font-medium transition-colors text-left ${
+                    item.active
+                      ? 'bg-[#E1F0FA] text-[#1E4E6E] border border-[#A8D4F0]'
+                      : 'text-[#2C1A12] hover:bg-[#FBF6EE] border border-transparent'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  <ChevronRight className="w-4 h-4 text-[#7C6354] shrink-0" />
+                </button>
+              ))}
+            </nav>
+
+            <div className="px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-[#EFE5D6] bg-[#FBF6EE] space-y-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  openAccountView('profile');
+                }}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#E4D8C6] hover:border-[#6B3F26] flex items-center justify-between text-sm font-medium text-[#2C1A12] transition-colors"
+              >
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <User className="w-4 h-4 text-[#6B3F26] shrink-0" />
+                  <span className="truncate">
+                    {firstName ? `Account (${firstName})` : 'Sign In / Create Account'}
+                  </span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-[#7C6354] shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsCartOpen(true);
+                }}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="font-mono tabular-nums">Open Bag ({totalBagCount})</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       <main id="top" className="flex-1">
         <div key={view} className="animate-page-enter">
@@ -1262,25 +1414,25 @@ export default function App() {
         ) : (
           <>
         {/* Section 1: Storefront Hero */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
-            <div className="lg:col-span-5 flex flex-col justify-between bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl p-7 sm:p-10">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-8 sm:pb-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 lg:gap-10 items-stretch">
+            <div className="lg:col-span-5 flex flex-col justify-between bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl p-5 sm:p-8 lg:p-10">
               <div>
                 <p className="text-xs font-medium text-[#2D6F99]">
                   New Arrivals · Clothes, Accessories & Tech Goods
                 </p>
                 <h1
-                  className="mt-4 font-display font-semibold tracking-tight text-[#2C1A12] leading-[1.08]"
-                  style={{ fontSize: 'clamp(2.25rem, 3.6vw, 3.25rem)', textWrap: 'balance' }}
+                  className="mt-3 sm:mt-4 font-display font-semibold tracking-tight text-[#2C1A12] leading-[1.08]"
+                  style={{ fontSize: 'clamp(1.85rem, 3.6vw, 3.25rem)', textWrap: 'balance' }}
                 >
                   Everyday style and smart tech, all in one place.
                 </h1>
-                <p className="mt-5 text-[15px] text-[#63493B] leading-relaxed max-w-[42ch]">
+                <p className="mt-4 sm:mt-5 text-[15px] text-[#63493B] leading-relaxed max-w-[42ch]">
                   Shop comfortable clothes, classic accessories, and reliable tech goods—made for daily life and priced clearly in rupees.
                 </p>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-[#EFE5D6] flex flex-wrap items-center gap-3">
+              <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-[#EFE5D6] flex flex-wrap items-center gap-3">
                 <a
                   href="#trending"
                   onClick={(e) => {
@@ -1309,7 +1461,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-[#E4D8C6] bg-[#F3EBDD] min-h-[280px] sm:min-h-[380px]">
+            <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-[#E4D8C6] bg-[#F3EBDD] aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:min-h-[380px]">
               <ResilientImage
                 src={HERO_IMAGE}
                 alt="shopEase studio collection featuring charcoal merino overshirt, anodized aluminum headphones, and espresso leather briefcase"
@@ -1319,18 +1471,18 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl px-6 py-4 text-xs">
-            <div className="flex items-center justify-between sm:justify-start sm:gap-3">
-              <span className="font-semibold text-[#2C1A12]">Free Delivery</span>
-              <span className="text-[#7C6354]">Orders above ₹4,999</span>
+          <div className="mt-5 sm:mt-6 grid grid-cols-1 sm:grid-cols-3 gap-0 sm:gap-4 divide-y divide-[#EFE5D6] sm:divide-y-0 bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl px-4 py-2 sm:px-6 sm:py-4 text-xs">
+            <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 py-2.5 sm:py-0">
+              <span className="font-semibold text-[#2C1A12] shrink-0">Free Delivery</span>
+              <span className="text-[#7C6354] text-right sm:text-left">Orders above ₹4,999</span>
             </div>
-            <div className="flex items-center justify-between sm:justify-start sm:gap-3 sm:border-l sm:border-[#EFE5D6] sm:pl-6">
-              <span className="font-semibold text-[#2C1A12]">Safe Checkout</span>
-              <span className="text-[#7C6354]">Secure sign-in & order tracking</span>
+            <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 py-2.5 sm:py-0 sm:border-l sm:border-[#EFE5D6] sm:pl-6">
+              <span className="font-semibold text-[#2C1A12] shrink-0">Safe Checkout</span>
+              <span className="text-[#7C6354] text-right sm:text-left">Secure sign-in & order tracking</span>
             </div>
-            <div className="flex items-center justify-between sm:justify-start sm:gap-3 sm:border-l sm:border-[#EFE5D6] sm:pl-6">
-              <span className="font-semibold text-[#2C1A12]">Easy Returns</span>
-              <span className="text-[#7C6354]">30-day return & warranty support</span>
+            <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 py-2.5 sm:py-0 sm:border-l sm:border-[#EFE5D6] sm:pl-6">
+              <span className="font-semibold text-[#2C1A12] shrink-0">Easy Returns</span>
+              <span className="text-[#7C6354] text-right sm:text-left">30-day return & warranty support</span>
             </div>
           </div>
         </section>
@@ -1358,7 +1510,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             {SHOP_BY_CATEGORIES.map((cat) => {
               const count = PRODUCTS.filter((p) => p.category === cat.id).length;
               const isSelected = selectedCategory === cat.id;
@@ -1413,7 +1565,7 @@ export default function App() {
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     />
                   </div>
-                  <div className="p-3.5">
+                  <div className="p-3 sm:p-3.5">
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="font-display text-sm font-semibold text-[#2C1A12] truncate">
                         {cat.title}
@@ -1466,7 +1618,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                 {selectedCategoryProducts.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -1495,7 +1647,7 @@ export default function App() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {highlightProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -1706,7 +1858,7 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-20 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm bg-[#FFFDF9] border border-[#A8D4F0] rounded-xl shadow-lg p-4 flex items-start gap-3 animate-toast-enter"
+          className="fixed top-16 sm:top-20 left-4 right-4 sm:left-auto sm:right-6 z-50 sm:w-full max-w-sm mx-auto sm:mx-0 bg-[#FFFDF9] border border-[#A8D4F0] rounded-xl shadow-lg p-4 flex items-start gap-3 animate-toast-enter"
         >
           <CheckCircle2 className="w-5 h-5 text-[#15803D] shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">

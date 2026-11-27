@@ -142,11 +142,11 @@ export function CartDrawer({
       aria-labelledby="cart-drawer-title"
     >
       <aside
-        className="w-full max-w-md h-full bg-[#FFFDF9] border-l border-[#E4D8C6] flex flex-col shadow-2xl animate-drawer-enter"
+        className="w-full max-w-md h-dvh bg-[#FFFDF9] border-l border-[#E4D8C6] flex flex-col shadow-2xl animate-drawer-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-5 border-b border-[#EFE5D6] flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-[#EFE5D6] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
             {step === 'checkout' && (
               <button
                 type="button"
@@ -155,13 +155,13 @@ export function CartDrawer({
                   setError(null);
                 }}
                 aria-label="Back to shopping bag"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#63493B] hover:bg-[#F3EBDD] hover:text-[#2C1A12]"
+                className="w-10 h-10 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-[#63493B] hover:bg-[#F3EBDD] hover:text-[#2C1A12] shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}
-            <ShoppingBag className="w-4 h-4 text-[#6B3F26]" />
-            <h2 id="cart-drawer-title" className="font-display text-lg font-semibold text-[#2C1A12]">
+            <ShoppingBag className="w-4 h-4 text-[#6B3F26] shrink-0" />
+            <h2 id="cart-drawer-title" className="font-display text-lg font-semibold text-[#2C1A12] truncate">
               {step === 'cart'
                 ? `Shopping Bag (${totalCount})`
                 : step === 'checkout'
@@ -176,14 +176,14 @@ export function CartDrawer({
               onClose();
             }}
             aria-label="Close shopping bag"
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#63493B] hover:bg-[#F3EBDD] hover:text-[#2C1A12] transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[#63493B] hover:bg-[#F3EBDD] hover:text-[#2C1A12] transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {step === 'receipt' && confirmedOrder ? (
-          <div key="receipt" className="flex-1 overflow-y-auto p-6 space-y-6 animate-panel-enter">
+          <div key="receipt" className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-6 animate-panel-enter">
             <div className="p-5 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] space-y-2">
               <div className="flex items-center gap-2 text-[#15803D]">
                 <CheckCircle2 className="w-5 h-5 shrink-0" />
@@ -284,14 +284,14 @@ export function CartDrawer({
           </div>
         ) : step === 'cart' ? (
           <div key="cart" className="flex-1 flex flex-col overflow-hidden animate-panel-enter">
-            <div className="px-6 py-3.5 bg-[#F5EFE4] border-b border-[#EFE5D6]">
-              <div className="flex items-center justify-between text-xs mb-1.5">
+            <div className="px-4 sm:px-6 py-3.5 bg-[#F5EFE4] border-b border-[#EFE5D6]">
+              <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
                 <span className="text-[#63493B]">
                   {remainingForFreeShipping === 0
                     ? 'Free express shipping unlocked'
                     : `Add ${formatINR(remainingForFreeShipping)} more for free express shipping`}
                 </span>
-                <span className="font-mono text-[#2C1A12] tabular-nums">{shippingProgress}%</span>
+                <span className="font-mono text-[#2C1A12] tabular-nums shrink-0">{shippingProgress}%</span>
               </div>
               <div className="h-2 w-full bg-[#E4D8C6] rounded-full overflow-hidden">
                 <div
@@ -301,11 +301,11 @@ export function CartDrawer({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 divide-y divide-[#EFE5D6]">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 divide-y divide-[#EFE5D6]">
               {detailedItems.map(({ product, variant, quantity }) => (
                 <div
                   key={`${product.id}::${variant}`}
-                  className="py-5 flex gap-4"
+                  className="py-4 sm:py-5 flex gap-3 sm:gap-4"
                 >
                   <div className="w-20 h-20 rounded-lg overflow-hidden bg-[#F3EBDD] shrink-0">
                     <ResilientImage
@@ -320,7 +320,7 @@ export function CartDrawer({
                         <h3 className="text-sm font-medium text-[#2C1A12] truncate">
                           {product.name}
                         </h3>
-                        <p className="text-xs text-[#7C6354] mt-0.5">
+                        <p className="text-xs text-[#7C6354] mt-0.5 truncate">
                           {product.brand} · {variant}
                         </p>
                       </div>
@@ -328,7 +328,7 @@ export function CartDrawer({
                         type="button"
                         onClick={() => onRemoveItem(product.id, variant)}
                         aria-label={`Remove ${product.name}`}
-                        className="w-8 h-8 flex items-center justify-center rounded text-[#7C6354] hover:text-[#B91C1C] hover:bg-[#FEF2F2] transition-colors shrink-0"
+                        className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded text-[#7C6354] hover:text-[#B91C1C] hover:bg-[#FEF2F2] transition-colors shrink-0"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -340,7 +340,7 @@ export function CartDrawer({
                           type="button"
                           onClick={() => onUpdateQuantity(product.id, variant, quantity - 1)}
                           aria-label={`Decrease ${product.name} quantity`}
-                          className="w-8 h-8 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD]"
+                          className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD]"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
@@ -351,7 +351,7 @@ export function CartDrawer({
                           type="button"
                           onClick={() => onUpdateQuantity(product.id, variant, Math.min(20, quantity + 1))}
                           aria-label={`Increase ${product.name} quantity`}
-                          className="w-8 h-8 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD]"
+                          className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center text-[#2C1A12] hover:bg-[#F3EBDD]"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -365,7 +365,7 @@ export function CartDrawer({
               ))}
             </div>
 
-            <div className="p-6 border-t border-[#EFE5D6] bg-[#F5EFE4] space-y-4">
+            <div className="p-4 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-[#EFE5D6] bg-[#F5EFE4] space-y-4">
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-[#63493B]">
                   <span>Subtotal</span>
@@ -421,7 +421,7 @@ export function CartDrawer({
           </div>
         ) : (
           <form key="checkout" onSubmit={handleCheckoutSubmit} className="flex-1 flex flex-col overflow-hidden animate-panel-enter">
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
               {error && (
                 <div
                   role="alert"
@@ -446,11 +446,12 @@ export function CartDrawer({
                     required
                     minLength={2}
                     maxLength={100}
+                    autoComplete="name"
                     value={shippingAddress.fullName}
                     onChange={(e) =>
                       setShippingAddress({ ...shippingAddress, fullName: e.target.value })
                     }
-                    className="w-full h-10 px-3 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+                    className="w-full h-11 px-3 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
                   />
                 </div>
                 <div>
@@ -463,15 +464,16 @@ export function CartDrawer({
                     required
                     minLength={4}
                     maxLength={160}
+                    autoComplete="street-address"
                     placeholder="12 MG Road, Indiranagar"
                     value={shippingAddress.street}
                     onChange={(e) =>
                       setShippingAddress({ ...shippingAddress, street: e.target.value })
                     }
-                    className="w-full h-10 px-3 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+                    className="w-full h-11 px-3 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="ship-city" className="block text-xs font-medium text-[#2C1A12] mb-1">
                       City
@@ -482,12 +484,13 @@ export function CartDrawer({
                       required
                       minLength={2}
                       maxLength={80}
+                      autoComplete="address-level2"
                       placeholder="Bengaluru"
                       value={shippingAddress.city}
                       onChange={(e) =>
                         setShippingAddress({ ...shippingAddress, city: e.target.value })
                       }
-                      className="w-full h-10 px-3 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+                      className="w-full h-11 px-3 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
                     />
                   </div>
                   <div>
@@ -500,12 +503,14 @@ export function CartDrawer({
                       required
                       minLength={3}
                       maxLength={20}
+                      inputMode="numeric"
+                      autoComplete="postal-code"
                       placeholder="560001"
                       value={shippingAddress.postalCode}
                       onChange={(e) =>
                         setShippingAddress({ ...shippingAddress, postalCode: e.target.value })
                       }
-                      className="w-full h-10 px-3 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+                      className="w-full h-11 px-3 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
                     />
                   </div>
                 </div>
@@ -519,11 +524,12 @@ export function CartDrawer({
                     required
                     minLength={2}
                     maxLength={80}
+                    autoComplete="country-name"
                     value={shippingAddress.country}
                     onChange={(e) =>
                       setShippingAddress({ ...shippingAddress, country: e.target.value })
                     }
-                    className="w-full h-10 px-3 text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+                    className="w-full h-11 px-3 text-base sm:text-sm bg-[#FFFDF9] border border-[#D7C6B1] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
                   />
                 </div>
               </div>
@@ -532,7 +538,7 @@ export function CartDrawer({
                 <h3 className="font-display text-sm font-semibold text-[#2C1A12]">
                   Payment Method
                 </h3>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('card')}
@@ -559,7 +565,7 @@ export function CartDrawer({
               </div>
             </div>
 
-            <div className="p-6 border-t border-[#EFE5D6] bg-[#F5EFE4] space-y-3">
+            <div className="p-4 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-[#EFE5D6] bg-[#F5EFE4] space-y-3">
               <div className="flex justify-between text-sm font-semibold text-[#2C1A12]">
                 <span>Order Total</span>
                 <span className="font-mono tabular-nums">{formatINR(total)}</span>
