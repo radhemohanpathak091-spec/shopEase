@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { Check, Heart, Minus, Plus, Star, X } from 'lucide-react';
+import { triggerBagFly } from '../lib/bagFly.ts';
 import { formatINR } from '../lib/catalogData.ts';
 import type { Product } from '../types/store.ts';
 import { ResilientImage } from './ResilientImage.tsx';
@@ -42,8 +43,9 @@ export function ProductDetailModal({
 
   if (!product) return null;
 
-  const handleAdd = () => {
+  const handleAdd = (e: MouseEvent<HTMLButtonElement>) => {
     if (!product.inStock) return;
+    triggerBagFly(e.currentTarget, product.image, product.name);
     onAddToCart(product, selectedVariant || product.variants[0], quantity);
     setAddedFeedback(true);
     setTimeout(() => setAddedFeedback(false), 1400);
@@ -169,7 +171,7 @@ export function ProductDetailModal({
                 type="button"
                 disabled={!product.inStock}
                 onClick={handleAdd}
-                className={`w-full sm:w-auto sm:flex-1 order-last sm:order-none min-h-[44px] sm:min-h-[42px] px-5 py-2.5 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
+                className={`btn-flow w-full sm:w-auto sm:flex-1 order-last sm:order-none min-h-[44px] sm:min-h-[42px] px-5 py-2.5 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2 transition-all active:scale-[0.98] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
                   !product.inStock
                     ? 'bg-[#F3EBDD] text-[#9A8476] cursor-not-allowed'
                     : addedFeedback

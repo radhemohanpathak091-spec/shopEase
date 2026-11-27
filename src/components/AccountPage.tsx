@@ -16,6 +16,7 @@ import {
   User,
 } from 'lucide-react';
 import { formatINR } from '../lib/catalogData.ts';
+import { triggerBagFly } from '../lib/bagFly.ts';
 import type { Order, Product, ShippingAddress, UserProfile } from '../types/store.ts';
 import { ResilientImage } from './ResilientImage.tsx';
 
@@ -718,7 +719,10 @@ export function AccountPage({
                                 {catalogItem && catalogItem.inStock && (
                                   <button
                                     type="button"
-                                    onClick={() => onAddToCart(catalogItem, item.variant)}
+                                    onClick={(e) => {
+                                      triggerBagFly(e.currentTarget, catalogItem.image, catalogItem.name);
+                                      onAddToCart(catalogItem, item.variant);
+                                    }}
                                     className="min-h-[38px] sm:min-h-[36px] px-3 py-1.5 text-xs font-medium text-[#1E4E6E] bg-[#E1F0FA] hover:bg-[#CBE4F6] border border-[#A8D4F0] rounded-lg transition-colors whitespace-nowrap"
                                   >
                                     Buy Again
@@ -845,8 +849,11 @@ export function AccountPage({
                       <button
                         type="button"
                         disabled={!product.inStock}
-                        onClick={() => onAddToCart(product)}
-                        className="flex-1 min-h-[40px] px-4 py-2 bg-[#6B3F26] hover:bg-[#4E2C19] disabled:bg-[#F3EBDD] disabled:text-[#9A8476] text-[#FFFDF9] text-xs font-medium rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
+                        onClick={(e) => {
+                          triggerBagFly(e.currentTarget, product.image, product.name);
+                          onAddToCart(product);
+                        }}
+                        className="btn-flow flex-1 min-h-[40px] px-4 py-2 bg-[#6B3F26] hover:bg-[#4E2C19] disabled:bg-[#F3EBDD] disabled:text-[#9A8476] text-[#FFFDF9] text-xs font-medium rounded-lg inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
                       >
                         <ShoppingBag className="w-3.5 h-3.5" />
                         {product.inStock ? 'Move to Bag' : 'Unavailable'}

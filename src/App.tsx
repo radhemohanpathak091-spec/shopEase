@@ -12,9 +12,12 @@ import {
 import { AccessoriesPage } from './components/AccessoriesPage.tsx';
 import { AccountPage, type AccountTab } from './components/AccountPage.tsx';
 import { AuthDrawer, type AuthSuccessMeta } from './components/AuthDrawer.tsx';
+import { BagFlyLayer } from './components/BagFlyLayer.tsx';
 import { BeautyPage } from './components/BeautyPage.tsx';
 import { CartDrawer } from './components/CartDrawer.tsx';
 import { ClothesPage } from './components/ClothesPage.tsx';
+import { FashionModel3D } from './components/FashionModel3D.tsx';
+import { FlowReveal } from './components/FlowReveal.tsx';
 import { FootwearPage } from './components/FootwearPage.tsx';
 import { HomeLivingPage } from './components/HomeLivingPage.tsx';
 import { LoadingPage } from './components/LoadingPage.tsx';
@@ -22,7 +25,7 @@ import { ProductCard } from './components/ProductCard.tsx';
 import { ProductDetailModal } from './components/ProductDetailModal.tsx';
 import { ResilientImage } from './components/ResilientImage.tsx';
 import { TechGoodsPage } from './components/TechGoodsPage.tsx';
-import { HERO_IMAGE, PRODUCTS } from './lib/catalogData.ts';
+import { PRODUCTS } from './lib/catalogData.ts';
 import {
   addWishlistItem,
   createOrder as createSupabaseOrder,
@@ -155,6 +158,7 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isBagPopping, setIsBagPopping] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [notification, setNotification] = useState<{
     title: string;
@@ -162,6 +166,8 @@ export default function App() {
   } | null>(null);
 
   const categoriesRef = useRef<HTMLElement | null>(null);
+  const bagButtonRef = useRef<HTMLButtonElement | null>(null);
+  const bagPopTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const viewRef = useRef(view);
   viewRef.current = view;
   const cartItemsRef = useRef(cartItems);
@@ -199,7 +205,19 @@ export default function App() {
     return () => {
       if (timers.swap) clearTimeout(timers.swap);
       if (timers.done) clearTimeout(timers.done);
+      if (bagPopTimerRef.current) clearTimeout(bagPopTimerRef.current);
     };
+  }, []);
+
+  const handleBagLand = useCallback(() => {
+    if (bagPopTimerRef.current) clearTimeout(bagPopTimerRef.current);
+    setIsBagPopping(false);
+    requestAnimationFrame(() => {
+      setIsBagPopping(true);
+      bagPopTimerRef.current = setTimeout(() => {
+        setIsBagPopping(false);
+      }, 380);
+    });
   }, []);
 
   useEffect(() => {
@@ -1196,9 +1214,12 @@ export default function App() {
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
+              ref={bagButtonRef}
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="inline-flex items-center gap-2 min-h-[42px] sm:min-h-[40px] px-3.5 sm:px-4 py-2 text-xs font-medium text-[#FFFDF9] bg-[#6B3F26] hover:bg-[#4E2C19] rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6]"
+              className={`btn-flow inline-flex items-center gap-2 min-h-[42px] sm:min-h-[40px] px-3.5 sm:px-4 py-2 text-xs font-medium text-[#FFFDF9] bg-[#6B3F26] hover:bg-[#4E2C19] rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6] ${
+                isBagPopping ? 'animate-bag-pop' : ''
+              }`}
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               <span className="font-mono tabular-nums">Bag ({totalBagCount})</span>
@@ -1416,7 +1437,10 @@ export default function App() {
         {/* Section 1: Storefront Hero */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-8 sm:pb-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 lg:gap-10 items-stretch">
-            <div className="lg:col-span-5 flex flex-col justify-between bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl p-5 sm:p-8 lg:p-10">
+            <FlowReveal
+              variant="up"
+              className="lg:col-span-5 flex flex-col justify-between bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl p-5 sm:p-8 lg:p-10"
+            >
               <div>
                 <p className="text-xs font-medium text-[#2D6F99]">
                   New Arrivals · Clothes, Accessories & Tech Goods
@@ -1439,7 +1463,7 @@ export default function App() {
                     e.preventDefault();
                     document.getElementById('trending')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0"
+                  className="btn-flow inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0"
                 >
                   Shop Now
                   <ArrowRight className="w-4 h-4" />
@@ -1459,19 +1483,21 @@ export default function App() {
                   {user ? 'My Account & Orders' : 'Sign In / Join'}
                 </button>
               </div>
-            </div>
+            </FlowReveal>
 
-            <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-[#E4D8C6] bg-[#F3EBDD] aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:min-h-[380px]">
-              <ResilientImage
-                src={HERO_IMAGE}
-                alt="shopEase studio collection featuring charcoal merino overshirt, anodized aluminum headphones, and espresso leather briefcase"
-                fallbackLabel="shopEase Collection"
-                className="w-full h-full object-cover"
-              />
-            </div>
+            <FlowReveal
+              variant="scale"
+              delayMs={90}
+              className="lg:col-span-7 flex flex-col rounded-2xl overflow-hidden border border-[#E4D8C6] bg-[#F3EBDD] min-h-[400px] sm:min-h-[440px] lg:min-h-[470px]"
+            >
+              <FashionModel3D />
+            </FlowReveal>
           </div>
 
-          <div className="mt-5 sm:mt-6 grid grid-cols-1 sm:grid-cols-3 gap-0 sm:gap-4 divide-y divide-[#EFE5D6] sm:divide-y-0 bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl px-4 py-2 sm:px-6 sm:py-4 text-xs">
+          <FlowReveal
+            delayMs={140}
+            className="mt-5 sm:mt-6 grid grid-cols-1 sm:grid-cols-3 gap-0 sm:gap-4 divide-y divide-[#EFE5D6] sm:divide-y-0 bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl px-4 py-2 sm:px-6 sm:py-4 text-xs"
+          >
             <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 py-2.5 sm:py-0">
               <span className="font-semibold text-[#2C1A12] shrink-0">Free Delivery</span>
               <span className="text-[#7C6354] text-right sm:text-left">Orders above ₹4,999</span>
@@ -1484,7 +1510,7 @@ export default function App() {
               <span className="font-semibold text-[#2C1A12] shrink-0">Easy Returns</span>
               <span className="text-[#7C6354] text-right sm:text-left">30-day return & warranty support</span>
             </div>
-          </div>
+          </FlowReveal>
         </section>
 
         {/* Section 2: Shop by Categories */}
@@ -1493,7 +1519,7 @@ export default function App() {
           ref={categoriesRef}
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-t border-[#E4D8C6]"
         >
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
+          <FlowReveal className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
             <div>
               <p className="text-xs font-medium text-[#2D6F99]">Browse Departments</p>
               <h2 className="mt-1 font-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#2C1A12]">
@@ -1508,75 +1534,76 @@ export default function App() {
               Open Full Clothes Collection
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          </div>
+          </FlowReveal>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-            {SHOP_BY_CATEGORIES.map((cat) => {
+            {SHOP_BY_CATEGORIES.map((cat, idx) => {
               const count = PRODUCTS.filter((p) => p.category === cat.id).length;
               const isSelected = selectedCategory === cat.id;
               return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    if (cat.id === 'apparel') {
-                      setSelectedCategory(null);
-                      openClothesView();
-                      return;
-                    }
-                    if (cat.id === 'footwear') {
-                      setSelectedCategory(null);
-                      openFootwearView();
-                      return;
-                    }
-                    if (cat.id === 'home-living') {
-                      setSelectedCategory(null);
-                      openHomeLivingView();
-                      return;
-                    }
-                    if (cat.id === 'accessories') {
-                      setSelectedCategory(null);
-                      openAccessoriesView();
-                      return;
-                    }
-                    if (cat.id === 'electronics') {
-                      setSelectedCategory(null);
-                      openTechGoodsView();
-                      return;
-                    }
-                    if (cat.id === 'beauty') {
-                      setSelectedCategory(null);
-                      openBeautyView();
-                      return;
-                    }
-                    setSelectedCategory((prev) => (prev === cat.id ? null : cat.id));
-                  }}
-                  className={`group text-left rounded-xl overflow-hidden border transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
-                    isSelected
-                      ? 'bg-[#E1F0FA] border-[#5CA4D6]'
-                      : 'bg-[#FFFDF9] border-[#E4D8C6] hover:border-[#6B3F26]'
-                  }`}
-                >
-                  <div className="aspect-[4/3] w-full bg-[#F3EBDD] overflow-hidden">
-                    <ResilientImage
-                      src={cat.image}
-                      alt={cat.title}
-                      fallbackLabel={cat.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  </div>
-                  <div className="p-3 sm:p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-display text-sm font-semibold text-[#2C1A12] truncate">
-                        {cat.title}
-                      </h3>
-                      <span className="font-mono text-[11px] text-[#7C6354] tabular-nums shrink-0">
-                        {count}
-                      </span>
+                <FlowReveal key={cat.id} delayMs={idx * 45} className="flex">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (cat.id === 'apparel') {
+                        setSelectedCategory(null);
+                        openClothesView();
+                        return;
+                      }
+                      if (cat.id === 'footwear') {
+                        setSelectedCategory(null);
+                        openFootwearView();
+                        return;
+                      }
+                      if (cat.id === 'home-living') {
+                        setSelectedCategory(null);
+                        openHomeLivingView();
+                        return;
+                      }
+                      if (cat.id === 'accessories') {
+                        setSelectedCategory(null);
+                        openAccessoriesView();
+                        return;
+                      }
+                      if (cat.id === 'electronics') {
+                        setSelectedCategory(null);
+                        openTechGoodsView();
+                        return;
+                      }
+                      if (cat.id === 'beauty') {
+                        setSelectedCategory(null);
+                        openBeautyView();
+                        return;
+                      }
+                      setSelectedCategory((prev) => (prev === cat.id ? null : cat.id));
+                    }}
+                    className={`w-full group text-left rounded-xl overflow-hidden border transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer focus-visible:outline-2 focus-visible:outline-[#5CA4D6] ${
+                      isSelected
+                        ? 'bg-[#E1F0FA] border-[#5CA4D6]'
+                        : 'bg-[#FFFDF9] border-[#E4D8C6] hover:border-[#6B3F26]'
+                    }`}
+                  >
+                    <div className="aspect-[4/3] w-full bg-[#F3EBDD] overflow-hidden">
+                      <ResilientImage
+                        src={cat.image}
+                        alt={cat.title}
+                        fallbackLabel={cat.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
                     </div>
-                    <p className="mt-0.5 text-[11px] text-[#63493B] truncate">{cat.subtitle}</p>
-                  </div>
-                </button>
+                    <div className="p-3 sm:p-3.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-display text-sm font-semibold text-[#2C1A12] truncate">
+                          {cat.title}
+                        </h3>
+                        <span className="font-mono text-[11px] text-[#7C6354] tabular-nums shrink-0">
+                          {count}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-[#63493B] truncate">{cat.subtitle}</p>
+                    </div>
+                  </button>
+                </FlowReveal>
               );
             })}
           </div>
@@ -1640,12 +1667,12 @@ export default function App() {
           id="trending"
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-t border-[#E4D8C6]"
         >
-          <div className="mb-6">
+          <FlowReveal className="mb-6">
             <p className="text-xs font-medium text-[#2D6F99]">Customer Favorites</p>
             <h2 className="mt-1 font-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#2C1A12]">
               Trending & Best Selling Products
             </h2>
-          </div>
+          </FlowReveal>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {highlightProducts.map((product) => (
@@ -1665,7 +1692,7 @@ export default function App() {
         {/* Section 4: Material & Craftsmanship Standards */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-[#E4D8C6]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
+            <FlowReveal delayMs={0}>
               <p className="font-mono text-xs text-[#2D6F99]">01</p>
               <h3 className="mt-2 font-display text-lg font-semibold text-[#2C1A12]">
                 Tailored Textiles
@@ -1673,8 +1700,8 @@ export default function App() {
               <p className="mt-2 text-sm text-[#63493B] leading-relaxed">
                 Double-faced Italian merino, shuttle-loomed Japanese selvedge, and heavyweight organic loopback cotton selected for multi-season longevity.
               </p>
-            </div>
-            <div>
+            </FlowReveal>
+            <FlowReveal delayMs={75}>
               <p className="font-mono text-xs text-[#2D6F99]">02</p>
               <h3 className="mt-2 font-display text-lg font-semibold text-[#2C1A12]">
                 Architectural Carry
@@ -1682,8 +1709,8 @@ export default function App() {
               <p className="mt-2 text-sm text-[#63493B] leading-relaxed">
                 Vegetable-tanned full-grain hides, Grade-5 titanium watch cases, and hand-finished Japanese cellulose acetate built for daily utility.
               </p>
-            </div>
-            <div>
+            </FlowReveal>
+            <FlowReveal delayMs={150}>
               <p className="font-mono text-xs text-[#2D6F99]">03</p>
               <h3 className="mt-2 font-display text-lg font-semibold text-[#2C1A12]">
                 Precision Tech Goods
@@ -1691,7 +1718,7 @@ export default function App() {
               <p className="mt-2 text-sm text-[#63493B] leading-relaxed">
                 CNC-milled aluminum acoustics, open-firmware mechanical keyboards, and weighted Qi2 power docks engineered without disposable plastics.
               </p>
-            </div>
+            </FlowReveal>
           </div>
         </section>
           </>
@@ -1888,6 +1915,8 @@ export default function App() {
           mode={isInitialLoading ? 'initial' : 'transition'}
         />
       )}
+
+      <BagFlyLayer targetRef={bagButtonRef} onLand={handleBagLand} />
     </div>
   );
 }

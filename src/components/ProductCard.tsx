@@ -1,5 +1,7 @@
 import { Check, Heart, Plus, Star } from 'lucide-react';
+import { triggerBagFly } from '../lib/bagFly.ts';
 import { formatINR } from '../lib/catalogData.ts';
+import { useFlowReveal } from '../lib/useFlowReveal.ts';
 import type { Product } from '../types/store.ts';
 import { ResilientImage } from './ResilientImage.tsx';
 
@@ -21,9 +23,19 @@ export function ProductCard({
   onToggleWishlist,
 }: ProductCardProps) {
   const isJustAdded = justAddedId === product.id;
+  const { ref, isVisible } = useFlowReveal<HTMLElement>();
 
   return (
-    <article className="group flex flex-col bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl overflow-hidden transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:border-[#CBB9A0]">
+    <article
+      ref={ref}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, 18px, 0)',
+        transition:
+          'opacity 520ms cubic-bezier(0.16, 1, 0.3, 1), transform 520ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease',
+      }}
+      className="group flex flex-col bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl overflow-hidden hover:-translate-y-0.5 hover:border-[#CBB9A0]"
+    >
       <div className="relative aspect-[4/3] w-full bg-[#F3EBDD] overflow-hidden">
         <button
           type="button"
@@ -99,8 +111,11 @@ export function ProductCard({
           <button
             type="button"
             disabled={!product.inStock}
-            onClick={() => onQuickAdd(product)}
-            className={`inline-flex items-center justify-center gap-1.5 min-h-[42px] sm:min-h-[40px] px-3.5 sm:px-4 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6] ${
+            onClick={(e) => {
+              triggerBagFly(e.currentTarget, product.image, product.name);
+              onQuickAdd(product);
+            }}
+            className={`btn-flow inline-flex items-center justify-center gap-1.5 min-h-[42px] sm:min-h-[40px] px-3.5 sm:px-4 py-2 text-xs font-medium rounded-lg transition-all active:scale-[0.97] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5CA4D6] ${
               !product.inStock
                 ? 'bg-[#F3EBDD] text-[#9A8476] cursor-not-allowed'
                 : isJustAdded

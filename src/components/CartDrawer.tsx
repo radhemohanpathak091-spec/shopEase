@@ -182,8 +182,42 @@ export function CartDrawer({
           </button>
         </div>
 
+        {(detailedItems.length > 0 || step === 'receipt') && (
+          <div className="px-4 sm:px-6 py-2.5 bg-[#FBF6EE] border-b border-[#EFE5D6]">
+            <div className="flex items-center justify-between text-[11px] font-medium mb-1.5">
+              <span className={step === 'cart' ? 'text-[#2C1A12] font-semibold' : 'text-[#2D6F99]'}>
+                01 Bag
+              </span>
+              <span
+                className={
+                  step === 'checkout'
+                    ? 'text-[#2C1A12] font-semibold'
+                    : step === 'receipt'
+                      ? 'text-[#2D6F99]'
+                      : 'text-[#9A8476]'
+                }
+              >
+                02 Delivery
+              </span>
+              <span className={step === 'receipt' ? 'text-[#15803D] font-semibold' : 'text-[#9A8476]'}>
+                03 Confirmed
+              </span>
+            </div>
+            <div className="h-1 w-full bg-[#E4D8C6] rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  step === 'receipt' ? 'bg-[#15803D]' : 'bg-[#6B3F26]'
+                }`}
+                style={{
+                  width: step === 'cart' ? '34%' : step === 'checkout' ? '68%' : '100%',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {step === 'receipt' && confirmedOrder ? (
-          <div key="receipt" className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-6 animate-panel-enter">
+          <div key="receipt" className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-6 animate-flow-step">
             <div className="p-5 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] space-y-2">
               <div className="flex items-center gap-2 text-[#15803D]">
                 <CheckCircle2 className="w-5 h-5 shrink-0" />
@@ -396,7 +430,7 @@ export function CartDrawer({
                   <button
                     type="button"
                     onClick={onOpenAuth}
-                    className="w-full min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] text-sm font-medium rounded-lg inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                    className="btn-flow w-full min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] text-sm font-medium rounded-lg inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
                   >
                     <Lock className="w-4 h-4" />
                     Sign In to Checkout
@@ -412,7 +446,7 @@ export function CartDrawer({
                     setError(null);
                     setStep('checkout');
                   }}
-                  className="w-full min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                  className="btn-flow w-full min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
                 >
                   Proceed to Checkout
                 </button>
@@ -420,7 +454,7 @@ export function CartDrawer({
             </div>
           </div>
         ) : (
-          <form key="checkout" onSubmit={handleCheckoutSubmit} className="flex-1 flex flex-col overflow-hidden animate-panel-enter">
+          <form key="checkout" onSubmit={handleCheckoutSubmit} className="flex-1 flex flex-col overflow-hidden animate-flow-step">
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
               {error && (
                 <div
@@ -573,7 +607,7 @@ export function CartDrawer({
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] disabled:opacity-60 text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                className="btn-flow w-full min-h-[44px] px-5 py-2.5 bg-[#6B3F26] hover:bg-[#4E2C19] disabled:opacity-60 text-[#FFFDF9] text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
               >
                 {submitting ? 'Processing Order...' : `Place Order — ${formatINR(total)}`}
               </button>
