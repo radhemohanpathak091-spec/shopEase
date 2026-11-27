@@ -11,6 +11,7 @@ import { AuthDrawer, type AuthSuccessMeta } from './components/AuthDrawer.tsx';
 import { CartDrawer } from './components/CartDrawer.tsx';
 import { ClothesPage } from './components/ClothesPage.tsx';
 import { FootwearPage } from './components/FootwearPage.tsx';
+import { HomeLivingPage } from './components/HomeLivingPage.tsx';
 import { LoadingPage } from './components/LoadingPage.tsx';
 import { ProductCard } from './components/ProductCard.tsx';
 import { ProductDetailModal } from './components/ProductDetailModal.tsx';
@@ -54,7 +55,7 @@ const SHOP_BY_CATEGORIES: {
   {
     id: 'home-living',
     title: 'Home & Living',
-    subtitle: 'Ceramics & Waffle Throws',
+    subtitle: 'Ceramics, Throws, Lamps & Candles',
     image: '/src/assets/images/product_pourover_set_1795523787352.jpg',
   },
   {
@@ -98,11 +99,12 @@ export default function App() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
 
-  const [view, setView] = useState<'store' | 'clothes' | 'footwear' | 'account'>(() => {
+  const [view, setView] = useState<'store' | 'clothes' | 'footwear' | 'home-living' | 'account'>(() => {
     if (typeof window === 'undefined') return 'store';
     if (window.location.pathname === '/account') return 'account';
     if (window.location.pathname === '/clothes') return 'clothes';
     if (window.location.pathname === '/footwear') return 'footwear';
+    if (window.location.pathname === '/home-living') return 'home-living';
     return 'store';
   });
   const [accountTab, setAccountTab] = useState<AccountTab>('profile');
@@ -324,7 +326,7 @@ export default function App() {
 
   const transitionToView = useCallback(
     (
-      targetView: 'store' | 'clothes' | 'footwear' | 'account',
+      targetView: 'store' | 'clothes' | 'footwear' | 'home-living' | 'account',
       options?: {
         pushPath?: string;
         afterSwap?: () => void;
@@ -349,6 +351,10 @@ export default function App() {
         footwear: {
           title: 'Footwear Collection',
           label: 'Loading sneakers, suede loafers, Chelsea boots & cork slides...',
+        },
+        'home-living': {
+          title: 'Home & Living',
+          label: 'Loading stoneware ceramics, organic textiles, lamps & candles...',
         },
         account: {
           title: 'My Account',
@@ -442,6 +448,8 @@ export default function App() {
         transitionToView('clothes');
       } else if (window.location.pathname === '/footwear') {
         transitionToView('footwear');
+      } else if (window.location.pathname === '/home-living') {
+        transitionToView('home-living');
       } else {
         transitionToView('store');
       }
@@ -493,6 +501,13 @@ export default function App() {
   const openFootwearView = () => {
     transitionToView('footwear', {
       pushPath: '/footwear',
+      afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
+    });
+  };
+
+  const openHomeLivingView = () => {
+    transitionToView('home-living', {
+      pushPath: '/home-living',
       afterSwap: () => window.scrollTo({ top: 0, behavior: 'auto' }),
     });
   };
@@ -815,9 +830,9 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => handleCategoryNavClick('home-living')}
+              onClick={openHomeLivingView}
               className={`hover:text-[#2C1A12] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                view === 'store' && selectedCategory === 'home-living'
+                view === 'home-living'
                   ? 'text-[#2C1A12] underline decoration-[#6B3F26] decoration-2 underline-offset-4'
                   : ''
               }`}
@@ -916,6 +931,20 @@ export default function App() {
           />
         ) : view === 'footwear' ? (
           <FootwearPage
+            products={PRODUCTS}
+            justAddedId={justAddedId}
+            wishlistIds={wishlistIds}
+            onBackToHome={() => {
+              setSelectedCategory(null);
+              openStoreView();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onQuickAdd={(product) => handleAddToCart(product)}
+            onToggleWishlist={handleToggleWishlist}
+          />
+        ) : view === 'home-living' ? (
+          <HomeLivingPage
             products={PRODUCTS}
             justAddedId={justAddedId}
             wishlistIds={wishlistIds}
@@ -1044,6 +1073,11 @@ export default function App() {
                     if (cat.id === 'footwear') {
                       setSelectedCategory(null);
                       openFootwearView();
+                      return;
+                    }
+                    if (cat.id === 'home-living') {
+                      setSelectedCategory(null);
+                      openHomeLivingView();
                       return;
                     }
                     setSelectedCategory((prev) => (prev === cat.id ? null : cat.id));
@@ -1197,57 +1231,57 @@ export default function App() {
       </main>
 
       {/* Footer Section */}
-      <footer className="border-t border-[#E4D8C6] bg-[#FFFDF9]">
+      <footer className="border-t border-[#1E3A5F] bg-[#0F2744] text-[#FFFDF9]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-[#EFE5D6]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-[#22436B]">
             <div className="space-y-3">
-              <p className="font-display text-lg font-bold tracking-tight text-[#2C1A12]">
+              <p className="font-display text-lg font-bold tracking-tight text-[#FFFDF9]">
                 shopEase
               </p>
-              <p className="text-xs text-[#63493B] leading-relaxed max-w-[28ch]">
+              <p className="text-xs text-[#D4E3F3] leading-relaxed max-w-[28ch]">
                 Everyday clothes, electronics, footwear, home & living, accessories, and beauty—curated in Indian Rupee pricing.
               </p>
               <button
                 type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="inline-flex items-center gap-1.5 min-h-[34px] px-3 py-1.5 text-xs font-medium text-[#1E4E6E] bg-[#E1F0FA] hover:bg-[#CBE4F6] border border-[#A8D4F0] rounded-lg transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 min-h-[34px] px-3 py-1.5 text-xs font-medium text-[#0F2744] bg-[#E1F0FA] hover:bg-[#CBE4F6] border border-[#A8D4F0] rounded-lg transition-colors whitespace-nowrap"
               >
                 Back to Top
               </button>
             </div>
 
             <div className="space-y-2.5 text-xs">
-              <h3 className="font-display text-xs font-semibold text-[#2C1A12]">
+              <h3 className="font-display text-xs font-semibold text-[#FFFDF9]">
                 Shop by Categories
               </h3>
-              <ul className="space-y-2 text-[#63493B]">
+              <ul className="space-y-2 text-[#D4E3F3]">
                 <li>
-                  <button type="button" onClick={openClothesView} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={openClothesView} className="hover:text-[#FFFDF9] transition-colors">
                     Fashion & Clothes
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleCategoryNavClick('electronics')} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={() => handleCategoryNavClick('electronics')} className="hover:text-[#FFFDF9] transition-colors">
                     Electronics
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={openFootwearView} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={openFootwearView} className="hover:text-[#FFFDF9] transition-colors">
                     Footwear
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleCategoryNavClick('home-living')} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={openHomeLivingView} className="hover:text-[#FFFDF9] transition-colors">
                     Home & Living
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleCategoryNavClick('accessories')} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={() => handleCategoryNavClick('accessories')} className="hover:text-[#FFFDF9] transition-colors">
                     Accessories
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => handleCategoryNavClick('beauty')} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={() => handleCategoryNavClick('beauty')} className="hover:text-[#FFFDF9] transition-colors">
                     Beauty
                   </button>
                 </li>
@@ -1255,27 +1289,27 @@ export default function App() {
             </div>
 
             <div className="space-y-2.5 text-xs">
-              <h3 className="font-display text-xs font-semibold text-[#2C1A12]">
+              <h3 className="font-display text-xs font-semibold text-[#FFFDF9]">
                 Account & Orders
               </h3>
-              <ul className="space-y-2 text-[#63493B]">
+              <ul className="space-y-2 text-[#D4E3F3]">
                 <li>
-                  <button type="button" onClick={() => openAccountView('profile')} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={() => openAccountView('profile')} className="hover:text-[#FFFDF9] transition-colors">
                     My Profile & DOB
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => openAccountView('orders')} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={() => openAccountView('orders')} className="hover:text-[#FFFDF9] transition-colors">
                     Orders & Tracking
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => openAccountView('wishlist')} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={() => openAccountView('wishlist')} className="hover:text-[#FFFDF9] transition-colors">
                     Saved Wishlist
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => setIsCartOpen(true)} className="hover:text-[#2C1A12] transition-colors">
+                  <button type="button" onClick={() => setIsCartOpen(true)} className="hover:text-[#FFFDF9] transition-colors">
                     Shopping Bag ({totalBagCount})
                   </button>
                 </li>
@@ -1287,7 +1321,7 @@ export default function App() {
                         setAuthMode('register');
                         setIsAuthOpen(true);
                       }}
-                      className="hover:text-[#2C1A12] transition-colors"
+                      className="hover:text-[#FFFDF9] transition-colors"
                     >
                       Sign In / Create Account
                     </button>
@@ -1297,21 +1331,20 @@ export default function App() {
             </div>
 
             <div className="space-y-2.5 text-xs">
-              <h3 className="font-display text-xs font-semibold text-[#2C1A12]">
+              <h3 className="font-display text-xs font-semibold text-[#FFFDF9]">
                 Customer Care
               </h3>
-              <ul className="space-y-2 text-[#63493B]">
+              <ul className="space-y-2 text-[#D4E3F3]">
                 <li>Free delivery on orders above ₹4,999</li>
                 <li>30-day easy returns & size exchange</li>
                 <li>Card & Cash on Delivery across India</li>
-                <li className="text-[#2D6F99] font-medium">support@shopease.in</li>
+                <li className="text-[#9CD0F5] font-medium">support@shopease.in</li>
               </ul>
             </div>
           </div>
 
-          <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#7C6354]">
+          <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#AFC7DF]">
             <p>© 2026 shopEase. All rights reserved.</p>
-            <p className="font-mono tabular-nums">All prices inclusive of store catalog INR (₹)</p>
           </div>
         </div>
       </footer>

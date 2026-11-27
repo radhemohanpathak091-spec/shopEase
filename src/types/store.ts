@@ -16,6 +16,11 @@ export type FootwearSubCategory =
   | 'loafers'
   | 'boots'
   | 'slides';
+export type HomeLivingSubCategory =
+  | 'dining'
+  | 'textiles'
+  | 'decor'
+  | 'fragrance';
 
 export interface ProductSpec {
   label: string;
@@ -28,7 +33,7 @@ export interface Product {
   name: string;
   brand: string;
   category: ProductCategory;
-  subCategory?: ClothesSubCategory | FootwearSubCategory;
+  subCategory?: ClothesSubCategory | FootwearSubCategory | HomeLivingSubCategory;
   categoryLabel: string;
   price: number;
   rating: number;

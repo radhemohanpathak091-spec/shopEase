@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, RotateCcw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, RotateCcw, Search, SlidersHorizontal, X } from 'lucide-react';
 import type { FootwearSubCategory, Product } from '../types/store.ts';
 import { ProductCard } from './ProductCard.tsx';
 
@@ -39,6 +39,7 @@ export function FootwearPage({
   const [priceRange, setPriceRange] = useState<FootwearPriceFilter>('all');
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState<FootwearSortOption>('featured');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const footwearProducts = useMemo(
     () => products.filter((item) => item.category === 'footwear'),
@@ -72,12 +73,13 @@ export function FootwearPage({
     return list;
   }, [footwearProducts, subCategory, searchQuery, priceRange, inStockOnly, sortBy]);
 
-  const hasActiveFilters =
-    subCategory !== 'all' ||
-    searchQuery.trim() !== '' ||
-    priceRange !== 'all' ||
-    inStockOnly ||
-    sortBy !== 'featured';
+  const activeFilterCount =
+    (subCategory !== 'all' ? 1 : 0) +
+    (priceRange !== 'all' ? 1 : 0) +
+    (inStockOnly ? 1 : 0) +
+    (sortBy !== 'featured' ? 1 : 0);
+
+  const hasActiveFilters = searchQuery.trim() !== '' || activeFilterCount > 0;
 
   const handleResetFilters = () => {
     setSubCategory('all');
@@ -106,8 +108,31 @@ export function FootwearPage({
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-10">
-      {/* Page Header */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 sm:space-y-8">
+      {/* Top Search Bar (placed above Footwear hero section) */}
+      <div className="relative">
+        <Search className="w-4 h-4 text-[#7C6354] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search sneakers, runners, loafers, Chelsea boots, cork slides, suede..."
+          aria-label="Search footwear"
+          className="w-full h-11 pl-10 pr-10 text-sm bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:border-[#6B3F26] shadow-2xs"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear footwear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#7C6354] hover:text-[#2C1A12] rounded"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Page Hero Header */}
       <section className="bg-[#FFFDF9] border border-[#E4D8C6] rounded-2xl p-6 sm:p-10">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="max-w-2xl">
@@ -156,119 +181,121 @@ export function FootwearPage({
         </div>
       </section>
 
-      {/* Filter & Search Toolbar */}
-      <section aria-label="Footwear filters" className="bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl p-4 space-y-4">
-        <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-[#7C6354] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search sneakers, runners, loafers, Chelsea boots, cork slides, suede..."
-              aria-label="Search footwear"
-              className="w-full h-11 pl-10 pr-10 text-sm bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] placeholder:text-[#9A8476] focus:outline-none focus:bg-[#FFFDF9] focus:border-[#6B3F26]"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear footwear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#7C6354] hover:text-[#2C1A12] rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+      {/* Compact Right-Aligned Collapsible Filter Section */}
+      <section aria-label="Footwear filters" className="flex flex-col items-end gap-2.5">
+        <div className="flex flex-wrap items-center justify-end gap-2.5">
+          <span className="font-mono text-xs text-[#7C6354] tabular-nums">
+            {filteredProducts.length} {filteredProducts.length === 1 ? 'pair' : 'pairs'}
+          </span>
 
-          <div
-            role="tablist"
-            aria-label="Footwear sub-categories"
-            className="flex items-center gap-1 p-1 bg-[#F3EBDD] rounded-lg overflow-x-auto"
-          >
-            {SUBCATEGORY_TABS.map((tab) => {
-              const active = subCategory === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setSubCategory(tab.id)}
-                  className={`min-h-[36px] px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    active
-                      ? 'bg-[#FFFDF9] text-[#2C1A12] shadow-xs'
-                      : 'text-[#63493B] hover:text-[#2C1A12]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#EFE5D6]">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#63493B] mr-1">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Filters:
-            </span>
-
-            <select
-              aria-label="Filter footwear by price"
-              value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value as FootwearPriceFilter)}
-              className="h-10 px-3 text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
-            >
-              <option value="all">All Prices (₹799 – ₹1,599)</option>
-              <option value="under-1000">Under ₹1,000</option>
-              <option value="1000-1400">₹1,000 – ₹1,400</option>
-              <option value="over-1400">₹1,401 – ₹1,599</option>
-            </select>
-
+          {hasActiveFilters && (
             <button
               type="button"
-              aria-pressed={inStockOnly}
-              onClick={() => setInStockOnly((prev) => !prev)}
-              className={`min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                inStockOnly
-                  ? 'bg-[#E1F0FA] text-[#1E4E6E] border-[#A8D4F0]'
-                  : 'bg-[#FBF6EE] text-[#2C1A12] border-[#E4D8C6] hover:border-[#6B3F26]'
-              }`}
+              onClick={handleResetFilters}
+              className="inline-flex items-center gap-1 min-h-[36px] px-2.5 text-xs font-medium text-[#2D6F99] hover:text-[#1E4E6E] whitespace-nowrap cursor-pointer"
             >
-              In Stock Only
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset
             </button>
+          )}
 
-            {hasActiveFilters && (
+          <button
+            type="button"
+            aria-expanded={isFilterOpen}
+            aria-controls="footwear-filter-panel"
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className={`inline-flex items-center gap-2 min-h-[38px] px-3.5 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap cursor-pointer ${
+              isFilterOpen || activeFilterCount > 0
+                ? 'bg-[#E1F0FA] text-[#1E4E6E] border-[#A8D4F0]'
+                : 'bg-[#FFFDF9] text-[#2C1A12] border-[#E4D8C6] hover:border-[#6B3F26]'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Filter</span>
+            {activeFilterCount > 0 && (
+              <span className="font-mono text-[11px] font-semibold tabular-nums">
+                ({activeFilterCount})
+              </span>
+            )}
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                isFilterOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+        </div>
+
+        {isFilterOpen && (
+          <div
+            id="footwear-filter-panel"
+            className="w-full lg:w-auto lg:max-w-3xl bg-[#FFFDF9] border border-[#E4D8C6] rounded-xl p-3.5 space-y-3 shadow-xs animate-panel-enter"
+          >
+            <div
+              role="tablist"
+              aria-label="Footwear sub-categories"
+              className="flex items-center gap-1 p-1 bg-[#F3EBDD] rounded-lg overflow-x-auto"
+            >
+              {SUBCATEGORY_TABS.map((tab) => {
+                const active = subCategory === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setSubCategory(tab.id)}
+                    className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      active
+                        ? 'bg-[#FFFDF9] text-[#2C1A12] shadow-xs'
+                        : 'text-[#63493B] hover:text-[#2C1A12]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2.5 border-t border-[#EFE5D6]">
+              <select
+                aria-label="Filter footwear by price"
+                value={priceRange}
+                onChange={(e) => setPriceRange(e.target.value as FootwearPriceFilter)}
+                className="h-9 px-2.5 text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+              >
+                <option value="all">All Prices (₹799 – ₹1,599)</option>
+                <option value="under-1000">Under ₹1,000</option>
+                <option value="1000-1400">₹1,000 – ₹1,400</option>
+                <option value="over-1400">₹1,401 – ₹1,599</option>
+              </select>
+
               <button
                 type="button"
-                onClick={handleResetFilters}
-                className="inline-flex items-center gap-1.5 min-h-[40px] px-3 text-xs font-medium text-[#2D6F99] hover:text-[#1E4E6E] whitespace-nowrap shrink-0 cursor-pointer"
+                aria-pressed={inStockOnly}
+                onClick={() => setInStockOnly((prev) => !prev)}
+                className={`min-h-[36px] px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  inStockOnly
+                    ? 'bg-[#E1F0FA] text-[#1E4E6E] border-[#A8D4F0]'
+                    : 'bg-[#FBF6EE] text-[#2C1A12] border-[#E4D8C6] hover:border-[#6B3F26]'
+                }`}
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset Filters
+                In Stock Only
               </button>
-            )}
-          </div>
 
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-xs text-[#7C6354] tabular-nums">
-              {filteredProducts.length} {filteredProducts.length === 1 ? 'pair' : 'pairs'}
-            </span>
-            <select
-              aria-label="Sort footwear"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as FootwearSortOption)}
-              className="h-10 px-3 text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
-            >
-              <option value="featured">Featured</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="rating">Highest Rated</option>
-            </select>
+              <select
+                aria-label="Sort footwear"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as FootwearSortOption)}
+                className="h-9 px-2.5 text-xs font-medium bg-[#FBF6EE] border border-[#E4D8C6] rounded-lg text-[#2C1A12] focus:outline-none focus:border-[#6B3F26]"
+              >
+                <option value="featured">Featured</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="rating">Highest Rated</option>
+              </select>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Catalog Views */}
