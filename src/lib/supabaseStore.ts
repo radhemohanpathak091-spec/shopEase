@@ -4,7 +4,7 @@ import {
   PRODUCTS,
   STANDARD_SHIPPING_COST,
   TAX_RATE,
-} from '../data/catalog.ts';
+} from './catalogData.ts';
 import { supabase } from '../supabaseClient.js';
 import type {
   CartItem,
@@ -175,7 +175,7 @@ export async function loadCartItems(userId: string): Promise<CartItem[]> {
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
 
-  if (error) throw error;
+  if (error) throw toSupabaseError(error, 'Could not load cart items.');
   return ((data ?? []) as CartItemRow[]).map((row) => ({
     productId: row.product_id,
     variant: row.variant,
@@ -190,7 +190,7 @@ export async function loadWishlist(userId: string): Promise<string[]> {
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw toSupabaseError(error, 'Could not load wishlist items.');
   return ((data ?? []) as WishlistItemRow[]).map((row) => row.product_id);
 }
 
@@ -226,7 +226,7 @@ export async function loadOrders(userId: string): Promise<Order[]> {
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw toSupabaseError(error, 'Could not load orders.');
   return ((data ?? []) as OrderRow[]).map(mapOrderRow);
 }
 
@@ -273,14 +273,14 @@ export async function upsertCartItem(
         .eq('product_id', item.productId)
         .eq('variant', item.variant)
         .maybeSingle();
-      if (selectError) throw selectError;
+      if (selectError) throw toSupabaseError(selectError, 'Could not check cart item.');
 
       if (existing) {
         const { error: updateError } = await supabase
           .from('cart_items')
           .update({ quantity: safeQty })
           .eq('id', existing.id);
-        if (updateError) throw updateError;
+        if (updateError) throw toSupabaseError(updateError, 'Could not update cart item.');
       } else {
         const { error: insertError } = await supabase.from('cart_items').insert({
           user_id: userId,
@@ -288,11 +288,11 @@ export async function upsertCartItem(
           variant: item.variant,
           quantity: safeQty,
         });
-        if (insertError) throw insertError;
+        if (insertError) throw toSupabaseError(insertError, 'Could not add cart item.');
       }
       return;
     }
-    throw error;
+    throw toSupabaseError(error, 'Could not save cart item.');
   }
 }
 
@@ -317,7 +317,7 @@ export async function syncCartItems(
       }
       return;
     }
-    throw error;
+    throw toSupabaseError(error, 'Could not sync cart items.');
   }
 }
 
@@ -344,11 +344,11 @@ export async function addWishlistItem(
         const { error: insertError } = await supabase
           .from('wishlist_items')
           .insert({ user_id: userId, product_id: productId });
-        if (insertError) throw insertError;
+        if (insertError) throw toSupabaseError(insertError, 'Could not add wishlist item.');
       }
       return;
     }
-    throw error;
+    throw toSupabaseError(error, 'Could not save wishlist item.');
   }
 }
 
@@ -372,7 +372,7 @@ export async function syncWishlistItems(
       }
       return;
     }
-    throw error;
+    throw toSupabaseError(error, 'Could not sync wishlist items.');
   }
 }
 
@@ -455,7 +455,7 @@ export async function createOrder(
     )
     .single();
 
-  if (orderError) throw orderError;
+  if (orderError) throw toSupabaseError(orderError, 'Could not place order.');
 
   const itemRows = snapshots.map((snap) => ({
     order_id: orderId,
@@ -472,14 +472,14 @@ export async function createOrder(
   const { error: itemsError } = await supabase.from('order_items').insert(itemRows);
   if (itemsError) {
     await supabase.from('orders').delete().eq('id', orderId).eq('user_id', userId);
-    throw itemsError;
+    throw toSupabaseError(itemsError, 'Could not save order items.');
   }
 
   const { error: clearError } = await supabase
     .from('cart_items')
     .delete()
     .eq('user_id', userId);
-  if (clearError) throw clearError;
+  if (clearError) throw toSupabaseError(clearError, 'Order saved, but could not clear bag.');
 
   const inserted = orderRow as OrderRow;
   return {
@@ -631,7 +631,7 @@ export async function removeCartItem(
     .eq('product_id', productId)
     .eq('variant', variant);
 
-  if (error) throw error;
+  if (error) throw toSupabaseError(error, 'Could not remove cart item.');
 }
 
 export async function removeWishlistItem(
@@ -644,5 +644,5 @@ export async function removeWishlistItem(
     .eq('user_id', userId)
     .eq('product_id', productId);
 
-  if (error) throw error;
+  if (error) throw toSupabaseError(error, 'Could not remove wishlist item.');
 }

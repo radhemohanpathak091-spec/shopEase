@@ -9,7 +9,7 @@ import {
   PRODUCTS,
   STANDARD_SHIPPING_COST,
   TAX_RATE,
-} from './src/data/catalog.ts';
+} from './src/lib/catalogData.ts';
 import type {
   CartItem,
   Order,
@@ -449,40 +449,44 @@ async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const authHeader = req.headers.authorization;
-  const bearerToken =
-    authHeader && authHeader.startsWith('Bearer ')
-      ? authHeader.slice('Bearer '.length).trim()
-      : null;
-  const cookieToken = parseCookie(req.headers.cookie, SESSION_COOKIE_NAME);
-  const token = bearerToken || cookieToken;
+  try {
+    const authHeader = req.headers.authorization;
+    const bearerToken =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : null;
+    const cookieToken = parseCookie(req.headers.cookie, SESSION_COOKIE_NAME);
+    const token = bearerToken || cookieToken;
 
-  if (!token) {
-    res.status(401).json({ error: 'Authentication required.' });
-    return;
-  }
-
-  const decoded = verifySessionToken(token);
-  if (decoded) {
-    const user = db.users.find((u) => u.id === decoded.sub);
-    if (!user) {
-      res.status(401).json({ error: 'User account not found.' });
+    if (!token) {
+      res.status(401).json({ error: 'Authentication required.' });
       return;
     }
-    req.authUser = user;
-    req.tokenJti = decoded.jti;
-    next();
-    return;
-  }
 
-  const supabaseUser = await verifySupabaseBearer(token);
-  if (supabaseUser) {
-    req.authUser = supabaseUser;
-    next();
-    return;
-  }
+    const decoded = verifySessionToken(token);
+    if (decoded) {
+      const user = db.users.find((u) => u.id === decoded.sub);
+      if (!user) {
+        res.status(401).json({ error: 'User account not found.' });
+        return;
+      }
+      req.authUser = user;
+      req.tokenJti = decoded.jti;
+      next();
+      return;
+    }
 
-  res.status(401).json({ error: 'Session expired or invalid. Please sign in again.' });
+    const supabaseUser = await verifySupabaseBearer(token);
+    if (supabaseUser) {
+      req.authUser = supabaseUser;
+      next();
+      return;
+    }
+
+    res.status(401).json({ error: 'Session expired or invalid. Please sign in again.' });
+  } catch {
+    res.status(401).json({ error: 'Authentication check failed. Please sign in again.' });
+  }
 }
 
 async function startServer(): Promise<void> {

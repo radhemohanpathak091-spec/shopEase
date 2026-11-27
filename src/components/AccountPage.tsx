@@ -15,7 +15,7 @@ import {
   Truck,
   User,
 } from 'lucide-react';
-import { formatINR } from '../data/catalog.ts';
+import { formatINR } from '../lib/catalogData.ts';
 import type { Order, Product, ShippingAddress, UserProfile } from '../types/store.ts';
 import { ResilientImage } from './ResilientImage.tsx';
 

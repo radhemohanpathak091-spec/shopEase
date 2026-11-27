@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { AlertCircle, Eye, EyeOff, LogOut, PackageCheck, User, X } from 'lucide-react';
-import { formatINR } from '../data/catalog.ts';
+import { formatINR } from '../lib/catalogData.ts';
 import { supabase } from '../supabaseClient.js';
 import type { Order, UserProfile } from '../types/store.ts';
 import { ResilientImage } from './ResilientImage.tsx';

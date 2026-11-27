@@ -1,5 +1,5 @@
 import { Check, Heart, Plus, Star } from 'lucide-react';
-import { formatINR } from '../data/catalog.ts';
+import { formatINR } from '../lib/catalogData.ts';
 import type { Product } from '../types/store.ts';
 import { ResilientImage } from './ResilientImage.tsx';
 

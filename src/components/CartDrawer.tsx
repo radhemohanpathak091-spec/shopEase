@@ -15,7 +15,7 @@ import {
   FREE_SHIPPING_THRESHOLD,
   STANDARD_SHIPPING_COST,
   TAX_RATE,
-} from '../data/catalog.ts';
+} from '../lib/catalogData.ts';
 import type {
   CartItem,
   Order,

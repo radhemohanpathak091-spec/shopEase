@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, Heart, Minus, Plus, Star, X } from 'lucide-react';
-import { formatINR } from '../data/catalog.ts';
+import { formatINR } from '../lib/catalogData.ts';
 import type { Product } from '../types/store.ts';
 import { ResilientImage } from './ResilientImage.tsx';
 

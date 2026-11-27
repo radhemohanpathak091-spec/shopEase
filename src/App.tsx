@@ -19,7 +19,7 @@ import { ProductCard } from './components/ProductCard.tsx';
 import { ProductDetailModal } from './components/ProductDetailModal.tsx';
 import { ResilientImage } from './components/ResilientImage.tsx';
 import { TechGoodsPage } from './components/TechGoodsPage.tsx';
-import { HERO_IMAGE, PRODUCTS } from './data/catalog.ts';
+import { HERO_IMAGE, PRODUCTS } from './lib/catalogData.ts';
 import {
   addWishlistItem,
   createOrder as createSupabaseOrder,
@@ -260,6 +260,8 @@ export default function App() {
         const data = (await response.json()) as { orders?: Order[] };
         setOrders(Array.isArray(data.orders) ? data.orders : []);
       }
+    } catch {
+      // Keep existing orders if transient network error occurs
     } finally {
       setOrdersLoading(false);
     }
@@ -333,10 +335,14 @@ export default function App() {
 
   const resolveSupabaseUserId = useCallback(async (): Promise<string | null> => {
     if (supabaseUserId) return supabaseUserId;
-    const { data } = await supabase.auth.getSession();
-    const uid = data.session?.user?.id ?? null;
-    if (uid) setSupabaseUserId(uid);
-    return uid;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const uid = data.session?.user?.id ?? null;
+      if (uid) setSupabaseUserId(uid);
+      return uid;
+    } catch {
+      return null;
+    }
   }, [supabaseUserId]);
 
   const applySupabaseSession = useCallback(
@@ -527,6 +533,9 @@ export default function App() {
           // No active cookie session
         }
       })
+      .catch(() => {
+        // Ignore transient session restore errors on boot
+      })
       .finally(() => {
         clearTimeout(maxBootTimer);
         finishInitialLoad();
@@ -537,7 +546,9 @@ export default function App() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') return;
       if (session) {
-        void applySupabaseSession(session, session.user);
+        void applySupabaseSession(session, session.user).catch(() => {
+          // Handled inside applySupabaseSession
+        });
       } else if (event === 'SIGNED_OUT') {
         setSupabaseUserId(null);
         setAuthToken(null);
@@ -913,7 +924,11 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Clear local client state even if Supabase signOut fails
+    }
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
